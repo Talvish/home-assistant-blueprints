@@ -1,0 +1,48 @@
+# ***************************************************************************
+# *  Copyright 2014 Joseph Molnar
+# *
+# *  Licensed under the Apache License, Version 2.0 (the "License");
+# *  you may not use this file except in compliance with the License.
+# *  You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# *  Unless required by applicable law or agreed to in writing, software
+# *  distributed under the License is distributed on an "AS IS" BASIS,
+# *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# *  See the License for the specific language governing permissions and
+# *  limitations under the License.
+# ***************************************************************************
+
+# This very simple blueprint was created to help learn how to create blueprints
+
+blueprint:
+  name: Automatic Timed Turn Off
+  description: When the specified switch is turned on, it will turn off automatically after the specified time period. This simple blueprint was used to learn how to create blueprints.
+  domain: automation
+  input:
+    target_switch:
+      name: Switch
+      description: The switch that when turned on, will turn off after the specified time period.
+      selector:
+        entity:
+          domain: switch
+    time_period:
+      name: Time Period
+      description: The time period that the specified switch will be on before being turned off.
+      selector:
+        duration:
+
+trigger:
+  - platform: state
+    entity_id: !input target_switch
+    to: "on"
+    for: !input time_period
+
+action:
+  - service: switch.turn_off
+    entity_id: !input target_switch
+
+# using restart because if switch happens to be turned  
+# off and then on again, we want to start again
+mode: restart 
