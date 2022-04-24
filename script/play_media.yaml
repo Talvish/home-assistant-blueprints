@@ -203,4 +203,4 @@ sequence:
     default: []
 
 mode: parallel
-icon: mdi:music-box
+icon: mdi:music-box-outline
