@@ -14,7 +14,7 @@
 # *  limitations under the License.
 # ***************************************************************************
 
-# Plays media, randomly chosen from the list given, on the specified devices with various options for shuffle, repeat, etc.
+# Plays the specified media on the specified devices with various options for shuffle, repeat, etc.
 
 blueprint:
   name: "Play Random Media"
