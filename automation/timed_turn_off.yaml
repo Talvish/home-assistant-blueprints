@@ -18,7 +18,9 @@
 
 blueprint:
   name: Automatic Timed Turn Off
-  description: When the specified switch is turned on, it will turn off automatically after the specified time period. This simple blueprint was used to learn how to create blueprints.
+  description: 
+    "This simple blueprint is used to create an automation that will automatically turn off the 
+    specified switch after a given time period whenever the specified switch is turned on."
   domain: automation
   input:
     target_switch:
