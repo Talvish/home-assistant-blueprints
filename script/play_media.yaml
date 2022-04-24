@@ -17,7 +17,7 @@
 # Plays the specified media on the specified devices with various options for shuffle, repeat, etc.
 
 blueprint:
-  name: "Play Random Media"
+  name: "Play Media"
   description:
     "This blueprint is used to add a script for playing media. The script plays the media
     specified and provides shuffle, repeat and volume options. \
