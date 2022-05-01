@@ -42,38 +42,38 @@ fields:
   time_window:
     name: Time Window
     description:
-      If music isn't playing this is the number of minutes (up to 4 hours) the script will look forward
+      If music isn't playing this is the number of minutes (up to 6 hours) the script will look forward
       to find an active alarm to disable. The alarm is re-enabled about 5 minutes after the time it
       would have gone off.
     required: false
+    default: 60
     selector:
       number:
         min: 0
-        max: 240
+        max: 360
         unit_of_measurement: minutes
         mode: slider
 variables:
   alarm: >-
+    {# Note: I'm new to jinja so there may be more efficient ways to do this...if so, contact me #}
     {%- set entities = device_entities( device_id( entity_id ) ) -%}
-    {# since the current day can flip while running this script and we want this as accurate #}
-    {# as possible, we capture the current time right away and base all calculations in this #}
-    {# script from that captured time, plus means we calculate just once #}
+    {# since the current day can flip while running this script and we want this as accurate as #}
+    {# possible, we capture the current time right away and base all calculations on it so there #}
+    {# are no oddities but does mean up front math and more variables to use later #}
     {%- set current_time = now() -%}
     {# set for current midnight to help with calculating alarms for today below #}
     {# again, doesn't use today_at() to ensure no cross-over in the day during execution #}
     {%- set current_midnight = current_time.replace(hour=0,minute=0,second=0,microsecond=0) %} 
     {# we track tomorrow to help with cross-overs at midnight and we force no more than 4 hours for future alarm #}
     {%- set tomorrow_midnight = current_midnight + timedelta(days=1) -%} 
-    {%- set current_weekday = current_midnight.isoweekday() -%}
-    {%- if current_weekday == 7 %}
-      {# the sonos alarms start at 0 and end at 6, while jinja starts at 1 and ends at 7#}
-      {# making it convenient that we only need to fix up Sunday #}
-      {%- set current_weekday = 0 %}
-    {%- endif -%}
-    {# we use this namespace track the alarm time info we find #}
+    {# the Sonos alarms start the week on Sunday but start at 0 and the ISO week starts on Monday #}
+    {# but starts at 1, so to correct the math we just modulo against 7 #}
+    {%- set current_weekday = current_midnight.isoweekday() % 7 -%}
+    {%- set tomorrow_weekday = ( current_weekday + 1 ) % 7 -%}
+    {# we use this namespace to track the alarm time info we find #}
     {%- set alarm_timing = namespace( days = "", time={}) -%}
-    {# we set delta in this structure to help processing later, this is also where we cap time to 4 hours #}    
-    {%- set found_alarm = namespace( found = false, entity_id = "", delta = timedelta(minutes = 240 if time_window > 240 else time_window )) -%} 
+    {# we set initial delta to help processing later while ensuring 6 hour cap and 60 minutes if no time_window #}    
+    {%- set found_alarm = namespace( found = false, entity_id = "", delta = timedelta(minutes=60 if time_window is undefined else 360 if time_window > 360 else time_window )) -%} 
     {# we iterate through all the entities on the specified entity looking for alarms #}
     {%- for entity_id in entities -%}
       {%- set entity_id_parts = entity_id.split('.') -%}
@@ -85,12 +85,12 @@ variables:
         {%- set recurrence = state_attr( entity_id, "recurrence") -%}
         {%- if recurrence == "DAILY" -%}
           {# if a daily alarm, we just indicate we will look across all the days #}
-          {%- set alarm_timing.days = "1234567" -%}
+          {%- set alarm_timing.days = "0123456" -%}
         {%- else -%}
           {# if not a daily alarm, the format is ON_#### (e.g. ON_1236), where ### are numbers of the weekdays #}
           {%- set alarm_timing.days = recurrence.split('_')[1] -%}
         {%- endif -%}
-        {# we need the time as a delta so we can add later, yes this is hefy work #}
+        {# we need the time as a delta so we can add later, yes this is hefty work #}
         {# but I don't know another way to take a string and turn into a timedelta #}
         {%- set alarm_time_parts = state_attr( entity_id, "time").split(':') -%}
         {%- set alarm_timing.time = timedelta( hours=alarm_time_parts[0] | int, minutes=alarm_time_parts[1] | int ) -%}
@@ -108,7 +108,7 @@ variables:
               {%- set found_alarm.entity_id = entity_id %}
               {%- set found_alarm.delta = delta %}
             {%- endif -%}
-          {%- elif day == ( current_weekday + 1 ) or (day == 0 and current_weekday == 6) %}
+          {%- elif day == tomorrow_weekday %}
             {# if the alarm is for tomorrow then we use tomorrow_midnight as a basis for time comparison #}
             {%- set alarm_timestamp = tomorrow_midnight + alarm_timing.time-%}
             {%- set delta = alarm_timestamp - current_time -%}
