@@ -1,8 +1,8 @@
-This script blueprint provides a convenient way to stop the current playing or upcoming 
-alarm on a Sonos speaker. When the script is called it checks to see if audio is currently 
-playing and if so, it stops the audio. If not the script checks if an alarm is coming soon 
-and if so prevents it from going off by disabling the alarm and then re-enabling after it
-would have gone off. 
+This script blueprint provides a convenient way to stop the current or upcoming 
+alarm on a Sonos speaker. When called, the script checks if audio is currently 
+playing and if so, stops the audio. If not, the script checks if an alarm is coming soon 
+and prevents it from going off by disabling the alarm and re-enabling after it
+would have gone off. At most, one alarm is impacted.
 
 The following field parameters can be given when the script is called:
 * Sonos speaker (that the alarms are attached to)
@@ -11,10 +11,10 @@ The following field parameters can be given when the script is called:
 This script is particularly convenient when:
 * You wake up earlier than your alarm and don't want to wake others
 * You don't want to fiddle with your phone or apps when you wake up
-* You have have something like a Lutron Caseta Pico remote or other physical button near your bed
+* You have have a phyiscal button near your bed (e.g. a Lutron Caseta Pico remote)
 
 ## Additional notes ##
-* At most one alarm will be impact
+
 * I recommend setting the mode to `parallel` when using the same script for multiple automations
 * This blueprint has no inputs, but is meant to be a script to call from automations  
 &nbsp;
@@ -199,4 +199,7 @@ sequence:
 mode: parallel
 icon: mdi:alarm
 ````
-You can find additional blueprints [here](https://github.com/Talvish/home-assistant-blueprints).
+&nbsp;
+# Additional Bluepints #
+* [Play Media Script w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)
+* Others in my [GitHub repository](https://github.com/Talvish/home-assistant-blueprints)
