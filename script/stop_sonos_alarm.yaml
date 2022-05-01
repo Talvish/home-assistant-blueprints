@@ -19,14 +19,13 @@
 blueprint:
   name: "Stop Sonos Alarm"
   description:
-    This blueprint is used to add a script to handle a current or upcoming alarm on a Sonos speaker.
-    The script will stop the specified speaker from whatever is currently playing and if nothing is 
-    playing it will check to see if an alarm is coming soon and if so, prevent it from going off. It 
-    does this by disabling the alarm and then re-enabling after it otherwise would have gone off. 
-    At most, one alarm will be stopped or temporarily disabled.
-
-    This is perfect for when you wake up earlier than your alarm and don't want the alarm to go 
-    potentially waking up others.
+    This blueprint is used to add a script that stops current audio on the specified Sonos speaker 
+    but if nothing is playing the script checks if an alarm is coming soon and if so, prevents it 
+    from going off by disabling the alarm and then re-enabling after it would have gone off. Only 
+    one alarm is impacted. 
+    
+    This is perfect for when you wake up earlier than your alarm and don't want the alarm to wake 
+    others. 
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
   domain: script
