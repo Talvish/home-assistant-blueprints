@@ -1,7 +1,10 @@
 This script blueprint provides an easy to way play media. The following field parameters can be given when the script is called:
 * _[required]_ Primary media player
+* _[required]_ ID for the content to play (typically a URL)
+* _[required]_ Content type of the media to play (defaults to `music`)
+* _[required]_ Primary media player
 * _[optional]_ List of additional media players (to group together for a multi-room setup, e.g. Sonos)
-* _[optional]_ Volume (and it will apply to all grouped players)
+* _[optional]_ Volume (it is applied to all grouped players)
 * _[optional]_ Shuffle
 * _[optional]_ Repeat
 

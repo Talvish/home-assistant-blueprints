@@ -10,7 +10,7 @@ The following field parameters can be given when the script is called:
 
 This script is particularly convenient when:
 * You wake up earlier than your alarm and don't want to wake others
-* You don't want to fiddle with your phone or apps when you wake up
+* You don't want to fiddle with your phone or speaker when you wake up
 * You have have a phyiscal button near your bed (e.g. a Lutron Caseta Pico remote)
 
 ## Additional notes ##
