@@ -5,8 +5,8 @@ and prevents it from going off by disabling the alarm and re-enabling after it
 would have gone off. At most, one alarm is impacted.
 
 The following field parameters can be given when the script is called:
-* Sonos speaker (that the alarms are attached to)
-* Time window that is used to look forward when disabling a future alarm
+* _[required]_ Sonos speaker (that the alarms are attached to)
+* _[optional]_ Time window that is used to look forward when disabling a future alarm. 60 minutes if not specified.
 
 This script is particularly convenient when:
 * You wake up earlier than your alarm and don't want to wake others
@@ -70,6 +70,7 @@ fields:
       to find an active alarm to disable. The alarm is re-enabled about 5 minutes after the time it
       would have gone off.
     required: false
+    default: 60
     selector:
       number:
         min: 0
@@ -97,7 +98,7 @@ variables:
     {# we use this namespace track the alarm time info we find #}
     {%- set alarm_timing = namespace( days = "", time={}) -%}
     {# we set delta in this structure to help processing later, this is also where we cap time to 4 hours #}    
-    {%- set found_alarm = namespace( found = false, entity_id = "", delta = timedelta(minutes = 240 if time_window > 240 else time_window )) -%} 
+    {%- set found_alarm = namespace( found = false, entity_id = "", delta = timedelta(minutes=60 if time_window is undefined else 240 if time_window > 240 else time_window )) -%} 
     {# we iterate through all the entities on the specified entity looking for alarms #}
     {%- for entity_id in entities -%}
       {%- set entity_id_parts = entity_id.split('.') -%}

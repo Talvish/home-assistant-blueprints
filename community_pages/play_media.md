@@ -1,8 +1,10 @@
 This script blueprint provides an easy to way play media. The following field parameters can be given when the script is called:
-* Shuffle
-* Repeat
-* Multiple media players to group together for a multi-room setup (e.g. Sonos)
-* Volume (and it will apply to all grouped players)
+* _[required]_ Primary media player
+* _[optional]_ List of additional media players (to group together for a multi-room setup, e.g. Sonos)
+* _[optional]_ Volume (and it will apply to all grouped players)
+* _[optional]_ Shuffle
+* _[optional]_ Repeat
+
 
 The script also has a few fail safes based on observed behaviour including:
 * Double checking that shuffle and repeat actually get set and if not, set again
