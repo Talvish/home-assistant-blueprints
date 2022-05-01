@@ -1,12 +1,16 @@
-This script blueprint provides an easy to way play media. The script has the following field parameters that can be set when called:
+This script blueprint provides an easy to way play media. The following field parameters can be given when the script is called:
 * Shuffle
 * Repeat
-* Specify multiple media players to group together for a multi-room setup (e.g. Sonos)
-* Specify volume (and it will apply to all grouped players)
+* Multiple media players to group together for a multi-room setup (e.g. Sonos)
+* Volume (and it will apply to all grouped players)
 
-The script also has a few fail safes based on observed behaviour including double checking that shuffle and repeat did take, and in the case of shuffle, if it didn't originally take, the script sets shuffle again and then forces to the next song so you don't always hear the first song.
+The script also has a few fail safes based on observed behaviour including:
+* Double checking that shuffle and repeat actually get set and if not, set again
+* If shuffle didn't get set the script also forces skipping to the next song so you don't always hear the first song in an album or playlist
 
-This blueprint has no inputs, but is meant to be a script to call from automations.
+## Additional notes ##
+* I recommend setting the mode to `parallel` when using the same script for multiple automations
+* This blueprint has no inputs, but is meant to be a script to call from automations  
 &nbsp;
 
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fplay_media.yaml)
