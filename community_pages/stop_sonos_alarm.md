@@ -6,7 +6,7 @@ would have gone off. At most, one alarm is impacted.
 
 The following field parameters can be given when the script is called:
 * _[required]_ Sonos speaker (that the alarms are attached to)
-* _[optional]_ Time window that is used to look forward when disabling a future alarm. 60 minutes if not specified. Maximum of 360 minutes (or 6 hours)
+* _[optional]_ Time window that is used to find and disable a future alarm. 60 minutes if not specified. Maximum of 360 minutes (or 6 hours).
 
 This script is particularly convenient when:
 * You wake up earlier than your alarm and don't want to wake others
