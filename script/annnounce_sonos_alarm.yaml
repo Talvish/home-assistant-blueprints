@@ -1,0 +1,201 @@
+blueprint:
+  name: Announce Sonos Alarm
+  description: ""
+  domain: script
+  input: {}
+fields:
+  entity_id:
+    description: The entity id of the Sonos speaker to find the alarm on and then announce the alarm on.
+    name: Entity
+    required: true
+    selector:
+      entity:
+        domain: media_player
+        integration: sonos
+  time_window:
+    name: Time Window
+    description:
+      The amount of time, in minutes, to look forward for an alarm. Maximum time is 1439 minutes
+      (23 hours and 59 minutes) and the default is 720 minutes (12 hours).
+    required: false
+    default: 720
+    selector:
+      number:
+        min: 0
+        max: 1439
+        unit_of_measurement: minutes
+        mode: slider
+variables:
+  alarm: >-
+    {# Note: I'm new to jinja so there may be more efficient ways to do this...if so, contact me #}
+    {%- set entities = device_entities( device_id( entity_id ) ) -%}
+    {# since the current day can flip while running this script and we want this as accurate as #}
+    {# possible, we capture the current time right away and base all calculations on it so there #}
+    {# are no oddities but does mean up front math and more variables to use later #}
+    {%- set current_time = now() -%}
+    {# set for current midnight to help with calculating alarms for today below #}
+    {# again, doesn't use today_at() to ensure no cross-over in the day during execution #}
+    {%- set current_midnight = current_time.replace(hour=0,minute=0,second=0,microsecond=0) %} 
+    {# we track tomorrow to help with cross-overs at midnight and we force no more than 4 hours for future alarm #}
+    {%- set tomorrow_midnight = current_midnight + timedelta(days=1) -%} 
+    {# the Sonos alarms start the week on Sunday but start at 0 and the ISO week starts on Monday #}
+    {# but starts at 1, so to correct the math we just modulo against 7 #}
+    {%- set current_weekday = current_midnight.isoweekday() % 7 -%}
+    {%- set tomorrow_weekday = ( current_weekday + 1 ) % 7 -%}
+    {# we use this namespace to track the alarm time info we find #}
+    {%- set alarm_timing = namespace( days = "", time={}) -%}
+    {# we set initial delta to help processing later while ensuring 6 hour cap and 60 minutes if no time_window #}    
+    {%- set found_alarm = namespace( found = false, entity_id = "", time = "", delta = timedelta(minutes=1420 if time_window is undefined else 1420 if time_window > 1420 else time_window )) -%} 
+    {# we iterate through all the entities on the specified entity looking for alarms #}
+    {%- for entity_id in entities -%}
+      {%- set entity_id_parts = entity_id.split('.') -%}
+      {%- set entity = states[entity_id_parts[0]][entity_id_parts[1]] -%}
+      {%- set alarm_id = state_attr( entity_id, "alarm_id") -%}
+      {# we see if we found a switch that has an alarm #}
+      {%- if entity.domain == "switch" and alarm_id != None and entity.state == "on" -%}
+        {# we need to figure out which days the alarm is on #}
+        {%- set recurrence = state_attr( entity_id, "recurrence") -%}
+        {%- if recurrence == "DAILY" -%}
+          {# if a daily alarm, we just indicate we will look across all the days #}
+          {%- set alarm_timing.days = "0123456" -%}
+        {%- else -%}
+          {# if not a daily alarm, the format is ON_#### (e.g. ON_1236), where ### are numbers of the weekdays #}
+          {%- set alarm_timing.days = recurrence.split('_')[1] -%}
+        {%- endif -%}
+        {# we need the time as a delta so we can add later, yes this is hefty work #}
+        {# but I don't know another way to take a string and turn into a timedelta #}
+        {%- set alarm_time = state_attr( entity_id, "time") -%}
+        {%- set alarm_time_parts = alarm_time.split(':') -%}
+        {%- set alarm_timing.time = timedelta( hours=alarm_time_parts[0] | int, minutes=alarm_time_parts[1] | int ) -%}
+        {# so now we loop through each day to see if we have a matching alarm #}
+        {# ideally we'd shortcircuit once we find it or go too far #}
+        {%- for day_string in alarm_timing.days %}
+          {%- set day = day_string | int -%}
+          {%- if day == current_weekday -%}
+            {# if the alarm is for today then we use current_midnight as a basis for time comparison #}
+            {%- set alarm_timestamp = current_midnight + alarm_timing.time-%}
+            {%- set delta = alarm_timestamp - current_time -%}
+            {# delta can't be negative, and replace alarm if delta is less than the last found (which includes never found) #}
+            {%- if delta >= timedelta() and found_alarm.delta >= delta -%}
+              {%- set found_alarm.found = true -%}
+              {%- set found_alarm.entity_id = entity_id %}
+              {%- set found_alarm.time = alarm_time %}
+              {%- set found_alarm.delta = delta %}
+            {%- endif -%}
+          {%- elif day == tomorrow_weekday %}
+            {# if the alarm is for tomorrow then we use tomorrow_midnight as a basis for time comparison #}
+            {%- set alarm_timestamp = tomorrow_midnight + alarm_timing.time-%}
+            {%- set delta = alarm_timestamp - current_time -%}
+            {# delta can't be negative, and replace alarm if delta is less than the last found (which includes never found) #}
+            {%- if delta >= timedelta() and found_alarm.delta >= delta -%}
+              {%- set found_alarm.found = true -%}
+              {%- set found_alarm.entity_id = entity_id %}
+              {%- set found_alarm.time = alarm_time %}
+              {%- set found_alarm.delta = delta %}
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor %}
+      {%- endif -%}
+    {%- endfor -%}
+    {# if we find the alarm then we can stop / pause it #}
+    {%- if found_alarm.found == true %}
+      {# return back the delta to help calculate when to re-enable the alarm, yes missing microseconds, but close enough #}
+      {% set delta_minutes = ( found_alarm.delta.seconds/60 ) | int %}
+      {% set delta_seconds = found_alarm.delta.seconds - (delta_minutes * 60) %}
+      {{ { "found": true, "entity_id": found_alarm.entity_id, "time": found_alarm.time, "delta": { "minutes": delta_minutes, "seconds" : delta_seconds } } }}
+    {%- else -%}
+      {{ { "found": false } }}
+    {%- endif -%}
+  entity_repeat_state: >-
+    {{ state_attr( entity_id, "repeat" ) }}
+  entity_group_leader: >-
+    {# we see if in a group since the repeat is typically controlled by it #}
+    {% set group_members = state_attr( entity_id, "group_members" ) %}
+    {% if group_members == None %}
+      {{ entity_id }}
+    {% else %}
+      {# the first seems to be the control, at least on Sonos #}
+      {{ group_members[0] }}
+    {% endif %}
+
+sequence:
+  # we check to see if the player is in repeat since if it is the alarm
+  # message will be repeated over and over again
+  - choose:
+      - conditions: >
+          {{ entity_repeat_state != "off" }}
+        sequence:
+          - service: media_player.repeat_set
+            data:
+              repeat: "off"
+              entity_id: "{{ entity_group_leader }}"
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 1
+              milliseconds: 0
+          - service: media_player.repeat_set
+            data:
+              repeat: "off"
+              entity_id: "{{ entity_group_leader }}"
+
+          # - choose:
+          #     - conditions: >
+          #         {{ is_state_attr(entity_group_leader, "repeat", "off") == false }}
+          #       sequence:
+          #         - service: media_player.repeat_set
+          #           data:
+          #             repeat: "off"
+          #             entity_id: "{{ entity_group_leader }}"
+          #   default: []
+    default: []
+
+  # now we play the appropriate message depending on whether we found an
+  # alarm or we didn't
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ alarm.found == false }}"
+        sequence:
+          - service: tts.google_translate_say
+            data:
+              entity_id: "{{ entity_id }}"
+              message: "An alarm is not set."
+    default:
+      - service: tts.google_translate_say
+        data:
+          entity_id: "{{ entity_id }}"
+          message: >
+            {# the time format on Sonos alarms is HH:MM:SS in 24-hour format #}
+            {# so we extract the hours and minutes and make it 12-hour based #}
+            {# and add the AM or PM #}
+            {%- set alarm_time_parts = alarm.time.split(':') -%}
+            {%- set alarm_time_hour = alarm_time_parts[0] | int -%}
+            {%- set alarm_time = ( alarm_time_parts[0] if alarm_time_hour < 13 else ( alarm_time_hour - 12 ) | string ) + ":" + alarm_time_parts[1] + ( " AM" if alarm_time_hour < 13 else " PM" ) -%}
+            "Alarm set for {{ alarm_time }}"
+
+  # we wait for the announcement to finish
+  - wait_template: "{{ states( 'media_player.backyard' ) != 'playing' }}"
+
+  # if the turned off repeat before, let's turn it back on again
+  - choose:
+      - conditions: >
+          {{ entity_repeat_state != "off" }}
+        sequence:
+          - service: media_player.repeat_set
+            data:
+              repeat: "{{ entity_repeat_state }}"
+              entity_id: "{{ entity_group_leader }}"
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 1
+              milliseconds: 0
+          - service: media_player.repeat_set
+            data:
+              repeat: "{{ entity_repeat_state }}"
+              entity_id: "{{ entity_group_leader }}"
+    default: []
+
+mode: parallel
+icon: mdi:alarm
