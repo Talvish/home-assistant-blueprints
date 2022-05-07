@@ -1,6 +1,6 @@
 This blueprint is used to add a script that will announce when the next alarm is set on the specified Sonos speaker. If the alarm is less than two hours away it will indicate how long until it rings. Otherwise the alarm will indicate the time when the alarm is set using a 12 hour format (e.g. 1 AM vs 1 PM). If it cannot find an alarm it will indicate that as well.
 
-It will gracefully handle when speakers are in groups, and restore playing music 
+It will gracefully handle when speakers are in groups, and restore playing music after it announces the alarm.
 
 The following field parameters can be given when the script is called:
 * _[required]_ Sonos speaker (that the alarms are attached to)
@@ -47,6 +47,9 @@ blueprint:
     until it rings. Otherwise the alarm will indicate the time when the alarm is set using a
     12 hour format (e.g. 1 AM vs 1 PM). If it cannot find an alarm it will indicate that as well.
 
+    The script will gracefully handle when speakers are in groups, and restore playing music 
+    after it announces the alarm.
+
     This is helpful as part of an automation when going to bed so you don't need to use a phone
     app to see when/if an alarm is set.
 
@@ -54,9 +57,9 @@ blueprint:
   domain: script
   input:
     tts_service_name:
-      name: Text To Speech Engine
+      name: Text To Speech Service Name
       description:
-        The text-to-speech engine to use to announce the alarm. This must match your Home
+        The text-to-speech service to use to announce the alarm. This must match your Home
         Assistant configuration.
       default: "google_translate_say"
       selector:
