@@ -1,8 +1,68 @@
+# ***************************************************************************
+# *  Copyright 2022 Joseph Molnar
+# *
+# *  Licensed under the Apache License, Version 2.0 (the "License");
+# *  you may not use this file except in compliance with the License.
+# *  You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# *  Unless required by applicable law or agreed to in writing, software
+# *  distributed under the License is distributed on an "AS IS" BASIS,
+# *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# *  See the License for the specific language governing permissions and
+# *  limitations under the License.
+# ***************************************************************************
+
+# Announces when the next alarm is set on a Sonos speaker.
+
 blueprint:
-  name: Announce Sonos Alarm
-  description: ""
+  name: "Announce Sonos Alarm"
+  description:
+    This blueprint is used to add a script that will announce when the next alarm is set on the
+    specified Sonos speaker.
+
+    I recommend setting the mode to parallel if you will use this script on more than one speaker.
   domain: script
-  input: {}
+  input:
+    language:
+      name: Language
+      description:
+        The language to use when announcing the next alarm.
+      required: false
+      default: "en"
+      selector:
+        text:
+    tts_engine:
+      name: Text To Speech Engine
+      description:
+        The text-to-speech engine to use to announce the alarm. This must match your Home 
+        Assistant configuration.
+      required: false
+      default: "google_translate_say"
+      selector:
+        text:
+    annouce_alarm_message:
+      name: Announce Alarm Message
+      description:
+        The message that will be read aloud if an alarm was found. The alarm time will be added to
+        the end.
+      required: false
+      default: "Alarm set for "
+      selector:
+        text:
+    annouce_no_alarm_message:
+      name: Announce 'No Alarm' Message
+      description:
+        The message that will be read aloud if an alarm could not be found.
+      required: false
+      default: "Alarm is not set."
+      selector:
+        text:
+
+
+# TODO
+# - allow specifying a 24 hour or 12 hour clock
 fields:
   entity_id:
     description: The entity id of the Sonos speaker to find the alarm on and then announce the alarm on.
