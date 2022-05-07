@@ -20,27 +20,28 @@ blueprint:
   name: "Announce Sonos Alarm"
   description:
     This blueprint is used to add a script that will announce when the next alarm is set on the
-    specified Sonos speaker.
+    specified Sonos speaker. If the alarm is less than two hours away it will indicate how long
+    until it rings. Otherwise the alarm will indicate the time when the alarm is set using a
+    12 hour format (e.g. 1 AM vs 1 PM). If it cannot find an alarm it will indicate that as well.
+
+    This is helpful as part of an automation when going to bed so you don't need to use a phone
+    app to see when/if an alarm is set.
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
   domain: script
   input:
-    tts_engine:
+    tts_service_name:
       name: Text To Speech Engine
       description:
-        The text-to-speech engine to use to announce the alarm. This must match your Home 
+        The text-to-speech engine to use to announce the alarm. This must match your Home
         Assistant configuration.
-      required: false
       default: "google_translate_say"
       selector:
         text:
 
-
-# TODO
-# - allow specifying a 24 hour or 12 hour clock
 fields:
   entity_id:
-    description: The entity id of the Sonos speaker to find the alarm on and then announce the alarm on.
+    description: The entity id of the Sonos speaker to find the alarm and then announce the alarm on.
     name: Entity
     required: true
     selector:
@@ -51,7 +52,7 @@ fields:
     name: Time Window
     description:
       The amount of time, in minutes, to look forward for an alarm. Maximum time is 1439 minutes
-      (23 hours and 59 minutes) and the default is 720 minutes (12 hours).
+      (23 hours and 59 minutes), minimum is 30 minutes and the default is 720 minutes (12 hours).
     required: false
     default: 720
     selector:
@@ -149,28 +150,37 @@ variables:
     {# we see if in a group since the repeat is typically controlled by it #}
     {# we use this for doing all the work since it is the primary speaker #}
     {# and everything will be shared across speakers anyhow #}
-    {% set group_members = state_attr( entity_id, "group_members" ) %}
-    {% if group_members == None %}
+    {%- set group_members = state_attr( entity_id, "group_members" ) -%}
+    {%- if group_members == None -%}
       {# we maybe on an older version of HA, so look for a different group name#}
-      {% set group_members = state_attr( entity_id, "sonos_group" ) %}
-      {% if group_members == None %}
+      {%- set group_members = state_attr( entity_id, "sonos_group" ) -%}
+      {%- if group_members == None -%}
         {{ entity_id }}
-      {% else %}
+      {%- else -%}
         {{ group_members[0] }}
-      {% endif %}
-    {% else %}
+      {%- endif -%}
+    {%- else -%}
       {# the first seems to be the control, at least on Sonos #}
       {{ group_members[0] }}
-    {% endif %}
+    {%- endif -%}
   entity_repeat_state: >-
     {# we grab the repeat state so that if in repeat mode we turn off #}
     {# and also sanity check that we got a value otherwise default to off #}
-    {% set repeat = state_attr( entity_group_leader, "repeat" ) %}
-    {% if repeat == None %}
-      "off"
-    {% else %}
+    {%- set repeat = state_attr( entity_group_leader, "repeat" ) -%}
+    {%- if repeat == None -%}
+      off
+    {%- else -%}
       {{ repeat }}
-    {% endif %}
+    {%- endif -%}
+  # oddly you can't get blueprint inputs directly into jina so putting the
+  # input into a variable so then in the engine variable I can verify values
+  tts_hack: !input tts_service_name
+  tts_engine: >-
+    {%- if tts_hack is undefined or tts_hack== None or tts_hack == "" -%}
+      tts.google_translate_say
+    {%- else -%}
+      tts.{{ tts_hack }}
+    {%- endif -%}
 
 sequence:
   # save current state so we can restore to whatever was happening previously
@@ -200,7 +210,7 @@ sequence:
             value_template: "{{ alarm.found == false }}"
         sequence:
           # didn't find alarm so indicate the period we checked over
-          - service: tts.google_translate_say
+          - service: "{{ tts_engine }}"
             data:
               entity_id: "{{ entity_group_leader }}"
               message: >
@@ -234,7 +244,7 @@ sequence:
     default:
       # found an alarm so we we indicate when the alarm will go over BUT we
       # say different things if within two hours, same day, or tomorrow
-      - service: tts.google_translate_say
+      - service: "{{ tts_engine }}"
         data:
           entity_id: "{{ entity_group_leader }}"
           message: >
@@ -308,4 +318,4 @@ sequence:
       with_group: true
 
 mode: parallel
-icon: mdi:alarm
+icon: mdi:account-voice
