@@ -65,6 +65,9 @@ fields:
         unit_of_measurement: minutes
         mode: slider
 variables:
+  valid_time_window: >-
+    {# make sure we have a valid time window to use #}
+    {{ 720 if ( time_window is undefined or time_window < 30 ) else 1439 if time_window > 1439 else time_window }}
   alarm: >-
     {# Note: I'm new to jinja so there may be more efficient ways to do this...if so, contact me #}
     {%- set entities = device_entities( device_id( entity_id ) ) -%}
@@ -83,8 +86,8 @@ variables:
     {%- set tomorrow_weekday = ( current_weekday + 1 ) % 7 -%}
     {# we use this namespace to track the alarm time info we find #}
     {%- set alarm_timing = namespace( days = "", time={}) -%}
-    {# we set initial delta to help processing later while ensuring ~24 hour cap and 12 hour if no time_window or window is too low #}    
-    {%- set found_alarm = namespace( found = false, entity_id = "", time = "", delta = timedelta(minutes=720 if ( time_window is undefined or time_window < 30 ) else 1439 if time_window > 1439 else time_window )) -%} 
+    {# we set initial delta to help processing later #}    
+    {%- set found_alarm = namespace( found = false, entity_id = "", time = "", delta = timedelta(minutes=valid_time_window )) -%} 
     {# we iterate through all the entities on the specified entity looking for alarms #}
     {%- for entity_id in entities -%}
       {%- set entity_id_parts = entity_id.split('.') -%}
@@ -219,8 +222,8 @@ sequence:
               message: >
                 {# calculate strings to indicate the hours / minutes we checked #} 
                 {# but words change depending IF / HOW MANY hours / minutes we have#}
-                {% set window_hours = ( time_window / ( 60 ) ) | int -%}
-                {% set window_minutes = time_window - ( window_hours * 60 ) -%}
+                {% set window_hours = ( valid_time_window / ( 60 ) ) | int -%}
+                {% set window_minutes = valid_time_window - ( window_hours * 60 ) -%}
                 {# so first the hours #}
                 {%- set hour_string = "" -%}
                 {%- if window_hours == 1 -%}
