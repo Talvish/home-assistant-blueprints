@@ -34,7 +34,7 @@ blueprint:
   domain: script
   input:
     tts_service_name:
-      name: Text To Speech Service Name
+      name: Text-To-Speech Service Name
       description:
         The text-to-speech service to use to announce the alarm. This must match your Home
         Assistant configuration.
@@ -317,7 +317,7 @@ sequence:
   # and now we restore where we were which should cover repeat, what's playing, etc.
   - service: sonos.restore
     data:
-      entity_id: media_player.office
+      entity_id: "{{ entity_group_leader }}"
       with_group: true
 
 mode: parallel
