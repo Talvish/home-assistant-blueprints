@@ -241,7 +241,7 @@ sequence:
                   {# this should never happen, but will put something just in case #}
                   "Could not find an alarm"
                 {%- else -%}
-                  "Could not find alarm over the next {{ delta_string }}"
+                  "Could not find an alarm over the next {{ delta_string }}"
                 {%- endif -%}
 
     default:
