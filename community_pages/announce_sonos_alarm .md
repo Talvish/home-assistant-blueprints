@@ -7,7 +7,7 @@ The following field parameters can be given when the script is called:
 * _[optional]_ Time window to look for an alarm to announce. Maximum time is 1439 minutes (23 hours and 59 minutes), minimum is 30 minutes and the default is 720 minutes (12 hours)
 
 The following blueprint inputs can be given when creating the script:
-* _[optional]_ Text-to-Speech Service to use to make the announcements. Default is "google_translate_say"
+* _[optional]_ Text-to-Speech Service to use to make the announcements. Default is `google_translate_say`
 
 This script is particularly convenient when:
 * You don't want to check phone apps when going to bed to see if/when an alarm is set
@@ -57,7 +57,7 @@ blueprint:
   domain: script
   input:
     tts_service_name:
-      name: Text To Speech Service Name
+      name: Text-To-Speech Service Name
       description:
         The text-to-speech service to use to announce the alarm. This must match your Home
         Assistant configuration.
@@ -340,7 +340,7 @@ sequence:
   # and now we restore where we were which should cover repeat, what's playing, etc.
   - service: sonos.restore
     data:
-      entity_id: media_player.office
+      entity_id: "{{ entity_group_leader }}"
       with_group: true
 
 mode: parallel
