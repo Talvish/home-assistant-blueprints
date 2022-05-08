@@ -60,7 +60,7 @@ fields:
     default: 720
     selector:
       number:
-        min: 0
+        min: 30
         max: 1439
         unit_of_measurement: minutes
         mode: slider
@@ -78,7 +78,7 @@ variables:
     {# set for current midnight to help with calculating alarms for today below #}
     {# again, doesn't use today_at() to ensure no cross-over in the day during execution #}
     {%- set current_midnight = current_time.replace(hour=0,minute=0,second=0,microsecond=0) %} 
-    {# we track tomorrow to help with cross-overs at midnight and we force no more than 4 hours for future alarm #}
+    {# we track tomorrow to help with cross-overs at midnight #}
     {%- set tomorrow_midnight = current_midnight + timedelta(days=1) -%} 
     {# the Sonos alarms start the week on Sunday but start at 0 and the ISO week starts on Monday #}
     {# but starts at 1, so to correct the math we just modulo against 7 #}
@@ -312,6 +312,9 @@ sequence:
   - wait_template: "{{ states( entity_id ) == 'playing' }}"
     timeout:
       seconds: 2 # timeout so doesn't sit forever
+  # we then put in a slight delay since the announcement can get cut off
+  - delay:
+      seconds: 4
   # then we wait for it to finish announcing before we continue
   - wait_template: "{{ states( entity_id ) != 'playing' }}"
     timeout:
