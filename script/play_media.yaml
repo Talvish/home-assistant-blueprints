@@ -73,7 +73,7 @@ fields:
           - "one"
   volume_level:
     name: "Volume Level"
-    description: "Float for volume level. Range 0..1. If not set, current value is used. If you specified Group Members the volume will be applied to all members."
+    description: "Float for volume level. Range 0..1. If a value isn't given, volume isn't changed. If you specified Group Members the volume will be applied to all members."
     required: false
     selector:
       number:

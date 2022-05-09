@@ -5,6 +5,7 @@ It will gracefully handle when speakers are in groups, and restore playing music
 The following field parameters can be given when the script is called:
 * _[required]_ Sonos speaker (that the alarms are attached to)
 * _[optional]_ Time window to look for an alarm to announce. Maximum time is 1439 minutes (23 hours and 59 minutes), minimum is 30 minutes and the default is 720 minutes (12 hours)
+* _[optional]_ Volume to used to play the announcement. This only impacts the indicated speaker, not the group.
 
 The following blueprint inputs can be given when creating the script:
 * _[optional]_ Text-to-Speech Service to use to make the announcements. Default is `google_translate_say`
@@ -353,7 +354,13 @@ mode: parallel
 icon: mdi:account-voice
 ````
 &nbsp;
-# Additional Bluepints #
-* Script: [Stop current alarm or temporarily disable future alarm on Sonos Speakers](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
+# Revisions #
+* _2022-05-08_: Added setting volume
+* _2022-05-07_: Initial release
+
+&nbsp;
+# List of Bluepints #
+* Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
+* Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
 * Script: [Play Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)
 * Others in my [GitHub repository](https://github.com/Talvish/home-assistant-blueprints)
