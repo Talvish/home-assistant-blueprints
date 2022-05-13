@@ -78,6 +78,9 @@ fields:
         unit_of_measurement: minutes
         mode: slider
 variables:
+  valid_time_window: >-
+    {# make sure we have a valid time window to use #}
+    {{ 0 if ( time_window is undefined or time_window < 0 ) else 360 if time_window > 360 else time_window }}
   alarm: >-
     {# Note: I'm new to jinja so there may be more efficient ways to do this...if so, contact me #}
     {%- set entities = device_entities( device_id( entity_id ) ) -%}
@@ -88,7 +91,7 @@ variables:
     {# set for current midnight to help with calculating alarms for today below #}
     {# again, doesn't use today_at() to ensure no cross-over in the day during execution #}
     {%- set current_midnight = current_time.replace(hour=0,minute=0,second=0,microsecond=0) %} 
-    {# we track tomorrow to help with cross-overs at midnight and we force no more than 4 hours for future alarm #}
+    {# we track tomorrow to help with cross-overs at midnight #}
     {%- set tomorrow_midnight = current_midnight + timedelta(days=1) -%} 
     {# the Sonos alarms start the week on Sunday but start at 0 and the ISO week starts on Monday #}
     {# but starts at 1, so to correct the math we just modulo against 7 #}
@@ -96,8 +99,8 @@ variables:
     {%- set tomorrow_weekday = ( current_weekday + 1 ) % 7 -%}
     {# we use this namespace to track the alarm time info we find #}
     {%- set alarm_timing = namespace( days = "", time={}) -%}
-    {# we set initial delta to help processing later while ensuring 6 hour cap and 60 minutes if no time_window #}    
-    {%- set found_alarm = namespace( found = false, entity_id = "", delta = timedelta(minutes=60 if time_window is undefined else 360 if time_window > 360 else time_window )) -%} 
+    {# we set initial delta to help processing later #}    
+    {%- set found_alarm = namespace( found = false, entity_id = "", time = "", delta = timedelta(minutes=valid_time_window )) -%} 
     {# we iterate through all the entities on the specified entity looking for alarms #}
     {%- for entity_id in entities -%}
       {%- set entity_id_parts = entity_id.split('.') -%}
@@ -110,13 +113,20 @@ variables:
         {%- if recurrence == "DAILY" -%}
           {# if a daily alarm, we just indicate we will look across all the days #}
           {%- set alarm_timing.days = "0123456" -%}
+        {%- elif recurrence == "WEEKDAYS" -%}
+          {# if weekdays we just indicate we will look across Monday through Friday #}
+          {%- set alarm_timing.days = "12345" -%}
+        {%- elif recurrence == "WEEKENDS" -%}
+          {# if a daily alarm, we just indicate we will look across Saturday and Sunday #}
+          {%- set alarm_timing.days = "06" -%}
         {%- else -%}
           {# if not a daily alarm, the format is ON_#### (e.g. ON_1236), where ### are numbers of the weekdays #}
           {%- set alarm_timing.days = recurrence.split('_')[1] -%}
         {%- endif -%}
         {# we need the time as a delta so we can add later, yes this is hefty work #}
         {# but I don't know another way to take a string and turn into a timedelta #}
-        {%- set alarm_time_parts = state_attr( entity_id, "time").split(':') -%}
+        {%- set alarm_time = state_attr( entity_id, "time") -%}
+        {%- set alarm_time_parts = alarm_time.split(':') -%}
         {%- set alarm_timing.time = timedelta( hours=alarm_time_parts[0] | int, minutes=alarm_time_parts[1] | int ) -%}
         {# so now we loop through each day to see if we have a matching alarm #}
         {# ideally we'd shortcircuit once we find it or go too far #}
@@ -130,6 +140,8 @@ variables:
             {%- if delta >= timedelta() and found_alarm.delta >= delta -%}
               {%- set found_alarm.found = true -%}
               {%- set found_alarm.entity_id = entity_id %}
+              {%- set found_alarm.time = alarm_time %}
+              {%- set found_alarm.call_timestamp = current_time %}
               {%- set found_alarm.delta = delta %}
             {%- endif -%}
           {%- elif day == tomorrow_weekday %}
@@ -140,18 +152,22 @@ variables:
             {%- if delta >= timedelta() and found_alarm.delta >= delta -%}
               {%- set found_alarm.found = true -%}
               {%- set found_alarm.entity_id = entity_id %}
+              {%- set found_alarm.time = alarm_time %}
+              {%- set found_alarm.call_timestamp = current_time %}
               {%- set found_alarm.delta = delta %}
             {%- endif -%}
           {%- endif -%}
         {%- endfor %}
       {%- endif -%}
     {%- endfor -%}
-    {# if we find the alarm then we can stop / pause it#}
+    {# if we find the alarm then we can stop / pause it #}
     {%- if found_alarm.found == true %}
       {# return back the delta to help calculate when to re-enable the alarm, yes missing microseconds, but close enough #}
-      {% set delta_minutes = ( found_alarm.delta.seconds/60 ) | int %}
-      {% set delta_seconds = found_alarm.delta.seconds - (delta_minutes * 60) %}
-      {{ { "found": true, "entity_id": found_alarm.entity_id, "delta": { "minutes": delta_minutes, "seconds" : delta_seconds } } }}
+      {% set delta_hours = ( found_alarm.delta.seconds / ( 3600 ) ) | int -%}
+      {% set remaining_seconds = found_alarm.delta.seconds - ( delta_hours * 3600 ) | int -%}
+      {% set delta_minutes = ( remaining_seconds / 60 ) | int  %}
+      {% set remaining_seconds = remaining_seconds - ( delta_minutes * 60 ) -%}
+      {{ { "found": true, "entity_id": found_alarm.entity_id, "time": found_alarm.time, "call_timestamp" : found_alarm.call_timestamp | string, "delta": { "hours": delta_hours,"minutes": delta_minutes, "seconds" : remaining_seconds } } }}
     {%- else -%}
       {{ { "found": false } }}
     {%- endif -%}
@@ -184,7 +200,8 @@ sequence:
       - delay:
           # we now wait to re-enable the alarm by using the delta to when the alarm
           # was suppose to go off, but adding five minutes, just to be safe
-          hours: 0
+          hours: >
+            {{ alarm.delta.hours  }} 
           minutes: >
             {{ alarm.delta.minutes + 5 }} 
           seconds: >
@@ -201,10 +218,11 @@ icon: mdi:alarm
 ````
 &nbsp;
 # Revisions #
+* _2022-05-14_: Fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-01_: Initial release
 
 &nbsp;
-# List of Bluepints #
+# List of Blueprints #
 * Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
 * Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
 * Script: [Play Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)

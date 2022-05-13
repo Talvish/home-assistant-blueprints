@@ -39,6 +39,9 @@ This script is particularly convenient when:
 # ***************************************************************************
 
 # Announces when the next alarm is set on a Sonos speaker.
+# Future considerations
+# - script-based optional playback vs alarm speaker
+# - blueprint-based 12 vs 24 clock
 
 blueprint:
   name: "Announce Sonos Alarm"
@@ -88,6 +91,17 @@ fields:
         max: 1439
         unit_of_measurement: minutes
         mode: slider
+  volume_level:
+    name: "Volume Level"
+    description: "Float for volume level. Range 0..1. If value isn't given, volume isn't changed."
+    required: false
+    selector:
+      number:
+        min: 0
+        max: 1
+        step: 0.01
+        mode: slider
+
 variables:
   valid_time_window: >-
     {# make sure we have a valid time window to use #}
@@ -124,6 +138,12 @@ variables:
         {%- if recurrence == "DAILY" -%}
           {# if a daily alarm, we just indicate we will look across all the days #}
           {%- set alarm_timing.days = "0123456" -%}
+        {%- elif recurrence == "WEEKDAYS" -%}
+          {# if weekdays we just indicate we will look across Monday through Friday #}
+          {%- set alarm_timing.days = "12345" -%}
+        {%- elif recurrence == "WEEKENDS" -%}
+          {# if a daily alarm, we just indicate we will look across Saturday and Sunday #}
+          {%- set alarm_timing.days = "06" -%}
         {%- else -%}
           {# if not a daily alarm, the format is ON_#### (e.g. ON_1236), where ### are numbers of the weekdays #}
           {%- set alarm_timing.days = recurrence.split('_')[1] -%}
@@ -218,6 +238,16 @@ sequence:
     data:
       entity_id: "{{ entity_group_leader }}"
       with_group: true
+  # we set the volume if it is defined, and in this case we only set the 
+  # speaker volume not the group leader volume
+  - choose:
+      - conditions: >
+          {{ volume_level is defined }}
+        sequence:
+          - service: media_player.volume_set
+            data:
+              volume_level: "{{ volume_level }}"
+              entity_id: "{{ entity_id }}"  
   # we check to see if the player is in repeat state and turn off otherwise
   # the alarm announcement will repeat forever
   - choose:
@@ -355,11 +385,11 @@ icon: mdi:account-voice
 ````
 &nbsp;
 # Revisions #
-* _2022-05-08_: Added setting volume
+* _2022-05-08_: Added setting volume and fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-07_: Initial release
 
 &nbsp;
-# List of Bluepints #
+# List of Blueprints #
 * Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
 * Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
 * Script: [Play Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)

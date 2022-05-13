@@ -89,6 +89,12 @@ variables:
         {%- if recurrence == "DAILY" -%}
           {# if a daily alarm, we just indicate we will look across all the days #}
           {%- set alarm_timing.days = "0123456" -%}
+        {%- elif recurrence == "WEEKDAYS" -%}
+          {# if weekdays we just indicate we will look across Monday through Friday #}
+          {%- set alarm_timing.days = "12345" -%}
+        {%- elif recurrence == "WEEKENDS" -%}
+          {# if a daily alarm, we just indicate we will look across Saturday and Sunday #}
+          {%- set alarm_timing.days = "06" -%}
         {%- else -%}
           {# if not a daily alarm, the format is ON_#### (e.g. ON_1236), where ### are numbers of the weekdays #}
           {%- set alarm_timing.days = recurrence.split('_')[1] -%}
