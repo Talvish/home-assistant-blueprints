@@ -80,7 +80,7 @@ fields:
 variables:
   valid_time_window: >-
     {# make sure we have a valid time window to use #}
-    {{ 0 if ( time_window is undefined or time_window < 0 ) else 360 if time_window > 360 else time_window }}
+    {{ 60 if ( time_window is undefined or time_window < 0 ) else 360 if time_window > 360 else time_window }}
   alarm: >-
     {# Note: I'm new to jinja so there may be more efficient ways to do this...if so, contact me #}
     {%- set entities = device_entities( device_id( entity_id ) ) -%}
@@ -218,7 +218,7 @@ icon: mdi:alarm
 ````
 &nbsp;
 # Revisions #
-* _2022-05-14_: Fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
+* _2022-05-13_: Fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-01_: Initial release
 
 &nbsp;

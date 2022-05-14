@@ -385,7 +385,7 @@ icon: mdi:account-voice
 ````
 &nbsp;
 # Revisions #
-* _2022-05-08_: Added setting volume and fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
+* _2022-05-13_: Added setting volume and fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-07_: Initial release
 
 &nbsp;
