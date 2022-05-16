@@ -1,6 +1,6 @@
-This script blueprint provides an easy to way play media. The following field parameters can be given when the script is called:
+This script blueprint provides an easy to way play media from a set of content. A list of media is sent in and one is randomly chosen to play. The following field parameters can be given when the script is called:
 * _[required]_ Primary media player
-* _[required]_ ID for the content to play (typically a URL)
+* _[required]_ List of content IDs (typically URLs) where one will be randomly chosen to play
 * _[required]_ Content type of the media to play (defaults to `music`)
 * _[required]_ Primary media player
 * _[optional]_ List of additional media players (to group together for a multi-room setup, e.g. Sonos)
@@ -8,17 +8,21 @@ This script blueprint provides an easy to way play media. The following field pa
 * _[optional]_ Shuffle
 * _[optional]_ Repeat
 
-
 The script also has a few fail safes based on observed behaviour including:
 * Double checking that shuffle and repeat actually get set and if not, set again
 * If shuffle didn't get set the script also forces skipping to the next song so you don't always hear the first song in an album or playlist
 
+This script is particularly convenient when:
+* You want to set a sleep timer but don't want the same music each night
+* You have a set of playlists you frequently listen to but like to mix it up
+
 ## Additional notes ##
 * I recommend setting the mode to `parallel` when using the same script for multiple automations
-* This blueprint has no inputs, but is meant to be a script called from automations 
+* This blueprint is very similar to my [`play_media`](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234) script, except it takes a list of content ids instead of one
+* This blueprint has no inputs, but is meant to be a script called from automations  
 &nbsp;
 
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fplay_media.yaml)
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fplay_random_media.yaml)
 
 ````yaml
 # ***************************************************************************
@@ -37,25 +41,25 @@ The script also has a few fail safes based on observed behaviour including:
 # *  limitations under the License.
 # ***************************************************************************
 
-# Plays the specified media on the specified devices with various options for shuffle, repeat, etc.
+# Plays media, randomly chosen from the list given, on the specified devices with various options for shuffle, repeat, etc.
 
 blueprint:
-  name: "Play Media"
+  name: "Play Random Media"
   description:
-    "This blueprint is used to add a script for playing media. The script plays the media
-    specified and provides shuffle, repeat and volume options. \
+    "This blueprint is used to add a script for playing media. The script randomly chooses which media
+    to use from the list given and provides shuffle, repeat and volume options. \
     If you have a multi-room setup (e.g. Sonos) additional media players can be specified. The players \
     will be grouped together with the primary media player."
   domain: script
 
 fields:
-  media_content_id:
-    name: Content ID
-    description: The ID of the content to play. Platform dependent.
-    example: https://open.spotify.com/playlist/37i9dQZF1DX4fQhfyVRsHW?si=9e78114227474022
+  media_content_ids:
+    name: "Content IDs"
+    description: "The list of IDs and one will be randomly chosen to play"
+    example: "https://open.spotify.com/playlist/37i9dQZF1DX4fQhfyVRsHW"
     required: true
     selector:
-      text:
+      object:
   media_content_type:
     name: "Content Type"
     description: "The type of content that will play. Platform dependent."
@@ -96,7 +100,7 @@ fields:
           - "one"
   volume_level:
     name: "Volume Level"
-    description: "Float for volume level. Range 0..1. If not set, current value is used. If you specified Group Members the volume will be applied to all members."
+    description: "Float for volume level. Range 0..1. If a value isn't given, volume isn't changed. If you specified Group Members the volume will be applied to all members."
     required: false
     selector:
       number:
@@ -187,7 +191,16 @@ sequence:
   # assuming we have the right media type
   - service: media_player.play_media
     data:
-      media_content_id: "{{media_content_id}}" 
+      media_content_id: >-
+        {% if media_content_ids is string %}
+          "{{media_content_ids}}" 
+        {% elif media_content_ids is mapping %}
+          "dictionary object isn't support"
+        {% elif media_content_ids is iterable %} 
+          "{{ media_content_ids | random }}"
+        {% else %}
+          "specified object isn't support"
+        {% endif %}
       media_content_type: "{{ media_content_type }}"
       entity_id: "{{ entity_id }}"
 
@@ -226,9 +239,8 @@ sequence:
     default: []
 
 mode: parallel
-icon: mdi:music-box-outline
+icon: mdi:music-box-multiple-outline
 ````
-As a note, I have a very similar blueprint that takes a list of media content ids (instead of one) and will randomly choose which to play whenever the script is invoked. It can be found [here](https://github.com/Talvish/home-assistant-blueprints).
 &nbsp;
 # Revisions #
 * _2022-04-24_: Initial release
