@@ -1,0 +1,221 @@
+# ***************************************************************************
+# *  Copyright 2022 Joseph Molnar
+# *
+# *  Licensed under the Apache License, Version 2.0 (the "License");
+# *  you may not use this file except in compliance with the License.
+# *  You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# *  Unless required by applicable law or agreed to in writing, software
+# *  distributed under the License is distributed on an "AS IS" BASIS,
+# *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# *  See the License for the specific language governing permissions and
+# *  limitations under the License.
+# ***************************************************************************
+
+# Announces the when the next alarm is set on a Sonos speaker.
+
+blueprint:
+  name: "Text-to-Speech on Sonos"
+  description:
+    This blueprint is used to add a script that will say a message on Sonos speakers but handle
+    a few of the oddities that can pop-up when doing so. For example"
+
+    The script will gracefully handle when speakers are in groups, and restore playing music
+    after it announces the alarm.
+
+    This is helpful when you want to give an audible alert when want to restore the as part of an automation when going to bed so you don't need to use a phone
+    app to see when/if an alarm is set.
+
+    I recommend setting the mode to parallel if you will use this script on more than one speaker.
+  domain: script
+  input:
+    tts_service_name:
+      name: Text-To-Speech Service Name
+      description:
+        The text-to-speech service to use when saying the message. This must match your Home
+        Assistant configuration.
+      default: "google_translate_say"
+      selector:
+        text:
+    tts_language:
+      name: Language
+      description:
+        The language that will be used by a text-to-speech service to say the message.
+        The language must be available with the text-to-speech service configured.
+      default: "en"
+      selector:
+        text:
+
+fields:
+  entity_id:
+    description: The entity id of the Sonos speaker to find the alarm and then announce the alarm on.
+    name: Entity
+    required: true
+    selector:
+      entity:
+        domain: media_player
+        integration: sonos
+  message:
+    description: The text the script will say.
+    name: Message
+    required: true
+    selector:
+      text:
+  volume_level:
+    name: "Volume Level"
+    description: "Float for volume level. Range 0..1. If value isn't given, volume isn't changed."
+    required: false
+    selector:
+      number:
+        min: 0
+        max: 1
+        step: 0.01
+        mode: slider
+
+variables:
+  entity_group_leader: >-
+    {# we see if in a group since the repeat is typically controlled by it #}
+    {# we use this for doing all the work since it is the primary speaker #}
+    {# and everything will be shared across speakers anyhow #}
+    {%- set group_members = state_attr( entity_id, "group_members" ) -%}
+    {%- if group_members == None -%}
+      {# we maybe on an older version of HA, so look for a different group name#}
+      {%- set group_members = state_attr( entity_id, "sonos_group" ) -%}
+      {%- if group_members == None -%}
+        {{ entity_id }}
+      {%- else -%}
+        {{ group_members[0] }}
+      {%- endif -%}
+    {%- else -%}
+      {# the first seems to be the control, at least on Sonos #}
+      {{ group_members[0] }}
+    {%- endif -%}
+  entity_repeat_state: >-
+    {# we grab the repeat state so that if in repeat mode we turn off #}
+    {# and also sanity check that we got a value otherwise default to off #}
+    {%- set repeat = state_attr( entity_group_leader, "repeat" ) -%}
+    {%- if repeat == None -%}
+      off
+    {%- else -%}
+      {{ repeat }}
+    {%- endif -%}
+
+  # oddly you can't get blueprint inputs directly into jina so . . .
+  # 1) putting service into a variable to verify values and provide default
+  tts_hack: !input tts_service_name
+  tts_engine: >-
+    {%- if tts_hack is undefined or tts_hack== None or tts_hack == "" -%}
+      tts.google_translate_say
+    {%- else -%}
+      tts.{{ tts_hack }}
+    {%- endif -%}
+  # 2) putting language into a variable to verify values and provide default
+  lang_hack: !input tts_language
+  tts_language: >-
+    {%- if lang_hack is undefined or lang_hack== None or lang_hack == "" -%}
+      "en"
+    {%- else -%}
+      {{ lang_hack }}
+    {%- endif -%}
+  # try to approximate delays to use we do some simple checks based on text length,
+  # this approximation is generally fine for western languages, though not great
+  # for others BUT the range is 1 and 4 second, so not too long for hard delay
+  fixed_delay: >-
+    {# we use a rough estimate of speaking 16 characters per second, which is #}
+    {# high, but we put min of 1 second and max of 4 regardless for the fixed delay #}
+    {# since we still have the wait delay, but definitely found a fixed delay is #}
+    {# required to not get cut off #}
+    {% set delay = ( message | length ) / 16 %}
+    {{ delay if ( delay >= 1 and delay <= 4 ) else 4 if delay >= 4 else 1 }}
+  # the wait delay shouldn't be as impactful since wait for state change should
+  # be relatively shortly
+  wait_delay: >-
+    {# for wait delay we want a bit extra time to make sure we don't get cut off #}
+    {# so we divide by 10 BUT we still make sure we put in 1 second minimum #}
+    {% set delay = ( ( message | length ) / 10 ) - fixed_delay %}
+    {{ delay if delay >= 1 else 1 }}
+
+sequence:
+  # save current state so we can restore to whatever was happening previously
+  - service: sonos.snapshot
+    data:
+      entity_id: "{{ entity_group_leader }}"
+      with_group: true
+  # we set the volume if it is defined, and in this case we only set the
+  # speaker volume not the group leader volume
+  - choose:
+      - conditions: >
+          {{ volume_level is defined }}
+        sequence:
+          # we pause the media since you will otherwise hear the volume
+          # change if different than what is playing
+          # TODO: check if playing and if so
+          #       call to pause it and then do a quick wait
+          - service: media_player.media_pause
+            data:
+              entity_id: "{{ entity_id }}"
+          - service: media_player.volume_set
+            data:
+              volume_level: "{{ volume_level }}"
+              entity_id: "{{ entity_id }}"
+  # we check to see if the player is in repeat state and turn off otherwise
+  # the alarm announcement will repeat forever
+  - choose:
+      - conditions: >
+          {{ entity_repeat_state != "off" }}
+        sequence:
+          - service: media_player.repeat_set
+            data:
+              repeat: "off"
+              entity_id: "{{ entity_group_leader }}"
+          - wait_template: "{{ state_attr( entity_group_leader, 'repeat' ) == 'off' }}"
+            timeout:
+              seconds: 4
+    default: []
+
+  # the actual call to say the message
+  - service: "{{ tts_engine }}"
+    data:
+      entity_id: "{{ entity_group_leader }}"
+      message: "{{ message }}"
+      language: "{{ tts_language }}"
+
+  # not sure why, but setting the repeat doesn't always properly take
+  # I can see it changing in the state  when the TTY goes the repeat
+  # turns back on ... calling to turn off again helps
+  - service: media_player.repeat_set
+    data:
+      repeat: "off"
+      entity_id: "{{ entity_group_leader }}"
+
+  # first we wait for it to start to properly announce the time
+  - wait_template: "{{ states( entity_id ) == 'playing' }}"
+    timeout:
+      seconds: 2 # timeout so doesn't sit forever
+  # we then put in a slight delay since the announcement can get cut off
+  - delay:
+      seconds: >
+        {{ fixed_delay | int }}
+      milliseconds: >
+        {{ ( ( fixed_delay - ( fixed_delay | int ) ) * 1000 ) | int }}
+
+  # then we wait for it to finish announcing before we continue
+  - wait_template: "{{ states( entity_id ) != 'playing' }}"
+    timeout:
+      seconds: > # timeout so doesn't sit forever
+        {{ wait_delay | int }}
+      milliseconds: >
+        {{ ( ( wait_delay - ( wait_delay | int ) ) * 1000 ) | int }}
+
+  # and now we restore where we were which should cover repeat, what's playing, etc.
+  # NOTE: so far this works when driven by Sonos or HA, but when driven from Alexa
+  #       it doesn't recover
+  - service: sonos.restore
+    data:
+      entity_id: "{{ entity_group_leader }}"
+      with_group: true
+
+mode: parallel
+icon: mdi:account-voice
