@@ -1,18 +1,26 @@
-This blueprint is used to add a script that will announce when the next alarm is set on the specified Sonos speaker. If the alarm is less than two hours away it will indicate how long until it rings. Otherwise the alarm will indicate the time when the alarm is set using a 12 hour format (e.g. 1 AM vs 1 PM). If it cannot find an alarm it will indicate that as well.
+This script blueprint will say a message on Sonos speakers. The script
+handles oddities I've observed when attempting to do so including saving/restore state,
+handling speaker groups, pausing music, disabling repeat, etc.
+* Saving the state of the Sonos and restoring when done (so music will stop and continue)
+* Handle when speakers are in groups (in old and newer versions of HA)
+* Pausing music so volume adjustments don't impact current music
+* Disable repeat so that the announcement doesn't repeat (and adding delays to handle setting correctly)
+* Adaptive delays to minimize chance of cut-offs
 
-It will gracefully handle when speakers are in groups, ensure the message doesn't repeat regardless of the state of the speeaker, and restore playing music after it says the message.
 
 The following field parameters can be given when the script is called:
 * _[required]_ Sonos speaker (that the alarms are attached to)
 * _[required]_ Text of the message to say
-* _[optional]_ Volume to used to play the announcement. This only impacts the indicated speaker, not the group.
+* _[optional]_ Volume to used to play the message. This only impacts the indicated speaker, not the group.
+* _[optional]_ Maximum number of seconds that the system will wait for the nessage to play
 
 The following blueprint inputs can be given when creating the script:
-* _[optional]_ Text-to-Speech Service to use to say the message. Default is `google_translate_say`
+* _[optional]_ Text-to-Speech Service engine to use to say the specified message. Default is `google_translate_say`.
+* _[optional]_ Language to say the message in. Default is `en`.
 
 This script is particularly convenient when:
 * You want to announce something on a Sonos speaker but want the speakers to continue what they were doing
-  beforehand (e.g. playing music)
+  beforehand.
 
 ## Additional notes ##
 
@@ -26,7 +34,7 @@ This script is particularly convenient when:
 ````
 &nbsp;
 # Revisions #
-* _2022-05-22_: Initial release
+* _2022-05-25_: Initial release
 
 &nbsp;
 # Available Blueprints #

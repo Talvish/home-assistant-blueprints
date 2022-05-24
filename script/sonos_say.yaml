@@ -16,17 +16,20 @@
 
 # Announces the when the next alarm is set on a Sonos speaker.
 
+# TODO:
+#   - fix the descriptions
+
 blueprint:
   name: "Text-to-Speech on Sonos"
   description:
-    This blueprint is used to add a script that will say a message on Sonos speakers but handle
-    a few of the oddities that can pop-up when doing so. For example"
-
-    The script will gracefully handle when speakers are in groups, and restore playing music
-    after it announces the alarm.
-
-    This is helpful when you want to give an audible alert when want to restore the as part of an automation when going to bed so you don't need to use a phone
-    app to see when/if an alarm is set.
+    This blueprint is used to add a script that will say a message on Sonos speakers. The script
+    handles oddities I've observed when attempting to do so including saving/restore state,
+    handling speaker groups, pausing music, disabling repeat, etc.
+    1. Saving the state of the Sonos and restoring when done (so music will stop and continue)
+    2. Handle when speakers are in groups (in old and newer versions of HA)
+    3. Pausing music so volume adjustments don't impact current music
+    4. Disable repeat so that the announcement doesn't repeat (and adding delays to handle setting correctly)
+    5. Adaptive delays to minimize chance of cut-offs
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
   domain: script
@@ -41,8 +44,7 @@ blueprint:
         text:
     tts_language:
       name: Language
-      description:
-        The language that will be used by a text-to-speech service to say the message.
+      description: The language to use with the text-to-speech service.
         The language must be available with the text-to-speech service configured.
       default: "en"
       selector:
@@ -72,6 +74,22 @@ fields:
         min: 0
         max: 1
         step: 0.01
+        mode: slider
+  max_wait:
+    name: "Maximum Wait"
+    description:
+      The maximum number of seconds that the system will wait for the announce to play
+      before continuing with the script. If the value is too short, the announcement may
+      get cut off. If this value isn't given, the system will calculate a value based on
+      the length of the string. This is likely fine for languages like English, and
+      likely too short for languages such as Chinese.
+    required: false
+    selector:
+      number:
+        min: 1
+        max: 60
+        step: 0.25
+        unit_of_measurement: seconds
         mode: slider
 
 variables:
@@ -132,10 +150,18 @@ variables:
   # the wait delay shouldn't be as impactful since wait for state change should
   # be relatively shortly
   wait_delay: >-
-    {# for wait delay we want a bit extra time to make sure we don't get cut off #}
-    {# so we divide by 10 BUT we still make sure we put in 1 second minimum #}
-    {% set delay = ( ( message | length ) / 10 ) - fixed_delay %}
-    {{ delay if delay >= 1 else 1 }}
+    {%- if max_wait is undefined or max_wait == None or not (max_wait is number) -%}
+      {# if we have a bad wait then we calculate something based on the #}
+      {# number of characters, which is an okay approximation for western #}
+      {# languages but not great for languages where a single character may #}
+      {# have a lot of syllables #}
+      {% set delay = ( ( message | length ) / 10 ) - fixed_delay %}
+      {{ delay if delay >= 1 else 1 }}
+    {%- elif max_wait < 1 -%}
+      1
+    {%- else -%}
+      {{ max_wait }}
+    {%- endif -%}
 
 sequence:
   # save current state so we can restore to whatever was happening previously
@@ -149,13 +175,25 @@ sequence:
       - conditions: >
           {{ volume_level is defined }}
         sequence:
-          # we pause the media since you will otherwise hear the volume
-          # change if different than what is playing
-          # TODO: check if playing and if so
-          #       call to pause it and then do a quick wait
-          - service: media_player.media_pause
-            data:
-              entity_id: "{{ entity_id }}"
+          - choose:
+              # see if the speaker is playing and pause it is so you don't
+              # hear the volume adjust on the current playing audio
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{ is_state(entity_group_leader, 'playing') }}
+                sequence:
+                  # so it is playing, so we want to pause
+                  - service: media_player.media_pause
+                    data:
+                      entity_id: >
+                        {{ entity_group_leader }}
+                  # and do a quick to make sure it isnt' playing
+                  - wait_template: "{{ states( entity_id ) != 'playing' }}"
+                    timeout:
+                      seconds: 2
+            default: []
+          # now we can set the set the volume
           - service: media_player.volume_set
             data:
               volume_level: "{{ volume_level }}"
@@ -211,7 +249,7 @@ sequence:
 
   # and now we restore where we were which should cover repeat, what's playing, etc.
   # NOTE: so far this works when driven by Sonos or HA, but when driven from Alexa
-  #       it doesn't recover
+  #       it doesn't seem to work as well
   - service: sonos.restore
     data:
       entity_id: "{{ entity_group_leader }}"
