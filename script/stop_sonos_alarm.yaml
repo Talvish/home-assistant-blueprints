@@ -190,4 +190,5 @@ sequence:
 # we run in parallel since this may take some time to run and more than one alarm
 # may be attempted to be turned off in a household
 mode: parallel
+max_exceeded: silent
 icon: mdi:alarm
