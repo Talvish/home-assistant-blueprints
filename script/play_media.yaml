@@ -203,4 +203,5 @@ sequence:
     default: []
 
 mode: parallel
+max_exceeded: silent
 icon: mdi:music-box-outline

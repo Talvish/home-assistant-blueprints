@@ -248,4 +248,5 @@ sequence:
       with_group: true
 
 mode: parallel
+max_exceeded: silent
 icon: mdi:account-voice
