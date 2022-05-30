@@ -14,37 +14,63 @@
 # *  limitations under the License.
 # ***************************************************************************
 
-#  . . .
+# Automation blueprint that makes sleeping and waking time convenient on Sonos.
 
 blueprint:
-  name: Sleep Alarm Handler
-  description: This blueprint . . .
+  name: Sonos Sleep/Alarm Button
+  description:
+    This blueprint creates an automation that listens to a button press on a Pico
+    remote and depending on the time of day does different things. If pressed
+    during the `Wake Phase` it will look for an an alarm on an Sonos speaker
+    and turn off, if playing now, or disable if it will go off in the near
+    future (as not to wake your significant other). If pressed during the `Sleep
+    Phase`, it will annouce when the next alarm is set to run, and then play
+    some sleep music.
+
+    This blueprint is a bit of experiment on a couple levels. One, checking
+    out how to do configurable triggers. Two, making use of existing scripts.
+
+    As a note, this is one of my favourite automations and I have used the
+    additional configurable actions to do things like turn off lights.
   domain: automation
   input:
-    entity_id:
+    speaker_id:
       name: Sonos Speaker
       description: The entity id of the Sonos speaker.
       selector:
         entity:
           domain: media_player
           integration: sonos
+    remote_id:
+      name: Pico Remote
+      description: The entity id of the pico remote to enable.
+      selector:
+        device:
+          integration: lutron_caseta
+
+    button:
+      name: Pico Remote Button
+      description: The button on the pico remote. Common values are 'raise', 'lower', 'on', 'off' and 'stop'.
+      selector:
+        text:
+
     wake_start_time:
-      name: Wake Up Phase - Start Time
+      name: Wake Phase | Start Time
       description:
         The time for when the stopping of the alarm can start. It should be set a good amount
         of time prior to when an alarm would normally be set but definitely after when you
-        go to sleep. The 'Wake-Up Phase' ends at the `Sleep Start Time`.
+        go to sleep. The `Wake Phase` ends at `Sleep Phase Start Time`.
       default: "04:00:00"
       selector:
         time:
-    # wake_action:
-    #   name: Wake Up Phase - Action
-    #   description: An action to run after the alarm is disabled. Examples could include opening blinds, playing music, etc.
-    #   default: []
-    #   selector:
-    #     action:
+    wake_action:
+      name: Wake Phase | Action
+      description: An action to run after the alarm is disabled. Examples could include opening blinds, playing music, etc.
+      default: []
+      selector:
+        action:
     disable_time_window:
-      name: Wake Up Phase - Disable Alarm Period
+      name: Wake Phase | Period of Time to Find Alarm to Disable
       description:
         The number of minutes (up to 6 hours) the script will look forward to find an active alarm to disable
         if music isn't playing. The alarm is re-enabled about 5 minutes after the time it would have gone off.
@@ -56,21 +82,23 @@ blueprint:
           unit_of_measurement: minutes
           mode: slider
     sleep_start_time:
-      name: To Sleep Phase - Start Time
-      description: The time for when announcing alarm and playing music can start. It will end at the `Awake Start Time`.
+      name: Sleep Phase | Start Time
+      description:
+        The time for when announcing alarm and playing music can start.
+        The `Sleep Phase` ends at the `Wake Phase Start Time`.
       default: "18:00:00"
       selector:
         time:
-    # sleep_action:
-    #   name: To Sleep Phase - Action
-    #   description:
-    #     An action to run before the announcing the alarm time and playing sleep music. Examples include turning
-    #     off lights.
-    #   default: []
-    #   selector:
-    #     action:
+    sleep_action:
+      name: Sleep Phase | Action
+      description:
+        An action to run before the announcing the alarm time and playing sleep music. Examples include turning
+        off lights.
+      default: []
+      selector:
+        action:
     announce_time_window:
-      name: To Sleep Phase - Announce Alarm Period
+      name: Sleep Phase | Period of Time to Find Alarm to Announce
       description:
         The amount of time, in minutes, to look forward for an alarm to announce. Maximum time is 1439 minutes
         (23 hours and 59 minutes), minimum is 30 minutes and the default is 720 minutes (12 hours).
@@ -82,7 +110,7 @@ blueprint:
           unit_of_measurement: minutes
           mode: slider
     announce_volume_level:
-      name: "To Sleep Phase - Announce Volume Level"
+      name: "Sleep Phase | Alarm Announce Volume"
       description: "Float for volume level. Range 0..1. If value isn't given, volume isn't changed."
       default: 0.15
       selector:
@@ -92,12 +120,12 @@ blueprint:
           step: 0.01
           mode: slider
     music_content_ids:
-      name: "To Sleep Phase - Music Content IDs"
+      name: "Sleep Phase | Music Content IDs"
       description: "The list of music IDs and one will be randomly chosen to play. This could spotify play lists or albums, and radio stations."
       selector:
         object:
     music_volume_level:
-      name: "To Sleep Phase - Music Volume Level"
+      name: "Sleep Phase | Music Volume Level"
       description: "Float for volume level. Range 0..1. If value isn't given, volume isn't changed."
       default: 0.02
       selector:
@@ -107,7 +135,7 @@ blueprint:
           step: 0.01
           mode: slider
     music_sleep_timer:
-      name: To Sleep Phase - Music Timer
+      name: Sleep Phase | Music Timer
       description: How long music will play before stopping. Default is 15 minutes. Maximum is 600 (10 hours).
       default: 25
       selector:
@@ -127,16 +155,15 @@ variables:
   # better to show the why
   music_sleep_timer: >
     {{ ( 25 * 60 ) if ( music_sleep_timer_hack is undefined or music_sleep_timer_hack < 0 ) else ( 600 * 60 ) if music_sleep_timer_hack > 600 else ( music_sleep_timer_hack * 60 ) }}
-  # sleep_action_hack: !input sleep_action
-  # sleep_action: >
-  #   {{ sleep_action_hack }}
 
 trigger:
+  # I would love to make this trigger more generic but not really sure
+  # how to do that yet, certainly can't make it an input as of yet
   - platform: device
-    device_id: 512641ed543c5e0e347ea6e30ce4068b
+    device_id: !input remote_id
     domain: lutron_caseta
     type: press
-    subtype: "off"
+    subtype: !input button
 
 action:
   - choose:
@@ -150,24 +177,30 @@ action:
           # existing script I built, which needs to be manually added
           - service: script.stop_sonos_alarm
             data:
-              entity_id: !input entity_id
+              entity_id: !input speaker_id
               time_window: !input disable_time_window
-          # we know run the wake action as the last item
-          # - !input wake_action
+          # we now run the wake action
+          # doing this weird choose thing to make so it will create the automation
+          # since I can't put call !input directly after the hyphen
+          - choose:
+              - conditions: >
+                  {{ false }}
+                sequence: []
+            default: !input wake_action
 
     default:
-      # 'To Sleep' phase of the automation
-      # first thing we do is call the sleep action
-      # - choose:
-      #     - conditions: >
-      #         {{ sleep_action != None }}
-      #       sequence:
-      #         - sleep_action
-      #   default: []
-      #  we announce the alarm using an existing script, which needs to be manually added
+      # we start by running the sleep action
+      # doing this weird choose thing to make so it will create the automation
+      # since I can't put call !input directly after the hyphen
+      - choose:
+          - conditions: >
+              {{ false }}
+            sequence: []
+        default: !input sleep_action
+      # then get into announcing the alarm
       - service: script.announce_sonos_alarm
         data:
-          entity_id: !input entity_id
+          entity_id: !input speaker_id
           time_window: !input announce_time_window
           volume_level: !input announce_volume_level
 
@@ -176,25 +209,26 @@ action:
       # needs to be manually added
       - choose:
           - conditions: >
-              {{ music_content_ids != None and music_content_ids == "" }}
+              {{ music_content_ids != None and music_content_ids != "" }}
             sequence:
               - service: script.play_random_media
                 data:
-                  media_content_type: music
-                  entity_id: !input entity_id
+                  media_content_type: music # forcing music
+                  entity_id: !input speaker_id
                   repeat: "all" # forcing repeat
                   volume_level: !input announce_volume_level
                   shuffle: true # forcing shuffle
-                  media_content_ids: music_content_ids
+                  media_content_ids: >
+                    {{ music_content_ids }}
               # we clear out any existing sleep timer, just in case
               - service: sonos.clear_sleep_timer
                 data:
-                  entity_id: !input entity_id
+                  entity_id: !input speaker_id
               # and now set the sleep timer
               - service: sonos.set_sleep_timer
                 data:
-                  sleep_time: music_sleep_timer
-                  entity_id: !input entity_id
+                  sleep_time: >
+                    {{ music_sleep_timer }}
+                  entity_id: !input speaker_id
         default: []
-
 mode: single

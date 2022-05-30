@@ -1,6 +1,6 @@
 This script blueprint provides an easy to way play media from a set of content. A list of media is sent in and one is randomly chosen to play. The following field parameters can be given when the script is called:
 * _[required]_ Primary media player
-* _[required]_ List of content IDs (typically URLs) where one will be randomly chosen to play
+* _[required]_ List of content IDs (typically URLs) where one will randomly be chosen to play
 * _[required]_ Content type of the media to play (defaults to `music`)
 * _[required]_ Primary media player
 * _[optional]_ List of additional media players (to group together for a multi-room setup, e.g. Sonos)
