@@ -19,19 +19,11 @@
 blueprint:
   name: Sonos Sleep/Alarm Button
   description:
-    This blueprint creates an automation that listens to a button press on a Pico
-    remote and depending on the time of day does different things. If pressed
-    during the `Wake Phase` it will look for an an alarm on an Sonos speaker
-    and turn off, if playing now, or disable if it will go off in the near
-    future (as not to wake your significant other). If pressed during the `Sleep
-    Phase`, it will annouce when the next alarm is set to run, and then play
-    some sleep music.
-
-    This blueprint is a bit of experiment on a couple levels. One, checking
-    out how to do configurable triggers. Two, making use of existing scripts.
-
-    As a note, this is one of my favourite automations and I have used the
-    additional configurable actions to do things like turn off lights.
+    This blueprint creates an automation that listens to a button press on a Lutron Caseta Pico remote 
+    and depending on the time of day does different things. If pressed during the `Wake Phase` it will
+    look for an an alarm on an Sonos speaker and turn off, if playing now, or disable if it will go off
+    in the near future (as not to wake your significant other). If pressed during the `Sleep Phase`, it
+    will annouce when the next alarm is set to run, and then play some sleep music.
   domain: automation
   input:
     speaker_id:
@@ -111,7 +103,7 @@ blueprint:
           mode: slider
     announce_volume_level:
       name: "Sleep Phase | Alarm Announce Volume"
-      description: "Float for volume level. Range 0..1. If value isn't given, volume isn't changed."
+      description: "Float for volume level. Range 0..1. If value isn't given, volume isn't changed. Recommend the value be more than the music volume."
       default: 0.15
       selector:
         number:
@@ -121,7 +113,7 @@ blueprint:
           mode: slider
     music_content_ids:
       name: "Sleep Phase | Music Content IDs"
-      description: "The list of music IDs and one will be randomly chosen to play. This could spotify play lists or albums, and radio stations."
+      description: "The list of music IDs and one will be randomly chosen to play. Examples include Spotify playlists or albums, Tune-In radio stations, etc."
       selector:
         object:
     music_volume_level:
@@ -137,7 +129,7 @@ blueprint:
     music_sleep_timer:
       name: Sleep Phase | Music Timer
       description: How long music will play before stopping. Default is 15 minutes. Maximum is 600 (10 hours).
-      default: 25
+      default: 15
       selector:
         number:
           min: 0
