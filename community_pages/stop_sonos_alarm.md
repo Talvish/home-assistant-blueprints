@@ -13,7 +13,7 @@ This script is particularly convenient when:
 * You don't want to fiddle with your phone or speaker when you wake up
 * You have have a phyiscal button near your bed (e.g. a Lutron Caseta Pico remote)
 
-## Additional notes ##
+## Additional Notes ##
 
 * I recommend setting the mode to `parallel` when using the same script for multiple automations
 * This blueprint has no inputs, but is meant to be a script to call from automations  
@@ -216,15 +216,15 @@ sequence:
 mode: parallel
 icon: mdi:alarm
 ````
-&nbsp;
+
 # Revisions #
 * _2022-05-13_: Fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-01_: Initial release
 
-&nbsp;
 # Available Blueprints #
 * Script: [Script for Sonos Speakers to do Text-to-Speech and Handle Typical Oddities](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)
 * Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
 * Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
+* Script: [Play Random Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-random-media-script-w-shuffle-repeat-multi-room-volume-support/426445)
 * Script: [Play Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)
 * Others in my [GitHub repository](https://github.com/Talvish/home-assistant-blueprints)

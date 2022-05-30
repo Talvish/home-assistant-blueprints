@@ -13,7 +13,7 @@ The script also has a few fail safes based on observed behaviour including:
 * Double checking that shuffle and repeat actually get set and if not, set again
 * If shuffle didn't get set the script also forces skipping to the next song so you don't always hear the first song in an album or playlist
 
-## Additional notes ##
+## Additional Notes ##
 * I recommend setting the mode to `parallel` when using the same script for multiple automations
 * This blueprint has no inputs, but is meant to be a script called from automations 
 &nbsp;
@@ -228,15 +228,14 @@ sequence:
 mode: parallel
 icon: mdi:music-box-outline
 ````
-As a note, I have a very similar blueprint that takes a list of media content ids (instead of one) and will randomly choose which to play whenever the script is invoked. It can be found [here](https://github.com/Talvish/home-assistant-blueprints).
-&nbsp;
+
 # Revisions #
 * _2022-04-24_: Initial release
 
-&nbsp;
 # Available Blueprints #
 * Script: [Script for Sonos Speakers to do Text-to-Speech and Handle Typical Oddities](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)
 * Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
 * Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
+* Script: [Play Random Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-random-media-script-w-shuffle-repeat-multi-room-volume-support/426445)
 * Script: [Play Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)
 * Others in my [GitHub repository](https://github.com/Talvish/home-assistant-blueprints)

@@ -20,7 +20,7 @@ This script is particularly convenient when:
 * You want to announce something on a Sonos speaker but want the speakers to continue what they were doing
   when playback completes (e.g. opening a dishwasher and announcing the dishes are clean on a kitchen speaker)
 
-## Additional notes ##
+## Additional Notes ##
 
 * I recommend setting the mode to `parallel` when using the same script for multiple automations
 &nbsp;
@@ -280,14 +280,14 @@ sequence:
 mode: parallel
 icon: mdi:account-voice
 ````
-&nbsp;
+
 # Revisions #
 * _2022-05-25_: Initial release
 
-&nbsp;
 # Available Blueprints #
 * Script: [Script for Sonos Speakers to do Text-to-Speech and Handle Typical Oddities](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)
 * Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
 * Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
+* Script: [Play Random Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-random-media-script-w-shuffle-repeat-multi-room-volume-support/426445)
 * Script: [Play Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)
 * Others in my [GitHub repository](https://github.com/Talvish/home-assistant-blueprints)

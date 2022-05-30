@@ -17,15 +17,19 @@
 # Automation blueprint that makes sleeping and waking time convenient on Sonos.
 
 blueprint:
-  name: Sonos Sleep/Alarm Button
+  name: Sonos Sleep Button
   description:
     This blueprint creates an automation that listens to a button press on a Lutron Caseta Pico remote 
     and depending on the time of day does different things. If pressed during the `Wake Phase` it will
-    look for an an alarm on an Sonos speaker and turn off, if playing now, or disable if it will go off
-    in the near future (as not to wake your significant other). If pressed during the `Sleep Phase`, it
-    will annouce when the next alarm is set to run, and then play some sleep music.
+    look for an an alarm on a Sonos speaker and turn off, if playing now, or disable an upcoming alarm
+    (as not to wake your significant other). Finally, it will execute an optional action. If pressed
+    during the `Sleep Phase`, it starts with an optional action, then annouces when the next alarm is
+    set to run, and ends with some optional sleep music.
   domain: automation
   input:
+
+    # general inputs
+
     speaker_id:
       name: Sonos Speaker
       description: The entity id of the Sonos speaker.
@@ -46,12 +50,14 @@ blueprint:
       selector:
         text:
 
+    # wake phase inputs
+
     wake_start_time:
       name: Wake Phase | Start Time
       description:
-        The time for when the stopping of the alarm can start. It should be set a good amount
-        of time prior to when an alarm would normally be set but definitely after when you
-        go to sleep. The `Wake Phase` ends at `Sleep Phase Start Time`.
+        The time when someone may wake and need to disable alarm. It should be set a good amount of
+        time prior to when an alarm would go off but after you go to sleep. The `Wake Phase` ends 
+        at `Sleep Phase Start Time`.
       default: "04:00:00"
       selector:
         time:
@@ -61,7 +67,7 @@ blueprint:
       default: []
       selector:
         action:
-    disable_time_window:
+    disable_alarm_time_window:
       name: Wake Phase | Period of Time to Find Alarm to Disable
       description:
         The number of minutes (up to 6 hours) the script will look forward to find an active alarm to disable
@@ -73,11 +79,13 @@ blueprint:
           max: 360
           unit_of_measurement: minutes
           mode: slider
+    
+    # sleep phase inputs
+
     sleep_start_time:
       name: Sleep Phase | Start Time
       description:
-        The time for when announcing alarm and playing music can start.
-        The `Sleep Phase` ends at the `Wake Phase Start Time`.
+        A time close to when, though before, you go to sleep. The `Sleep Phase` ends at the `Wake Phase Start Time`.
       default: "18:00:00"
       selector:
         time:
@@ -89,7 +97,7 @@ blueprint:
       default: []
       selector:
         action:
-    announce_time_window:
+    announce_alarm_time_window:
       name: Sleep Phase | Period of Time to Find Alarm to Announce
       description:
         The amount of time, in minutes, to look forward for an alarm to announce. Maximum time is 1439 minutes
@@ -170,7 +178,7 @@ action:
           - service: script.stop_sonos_alarm
             data:
               entity_id: !input speaker_id
-              time_window: !input disable_time_window
+              time_window: !input disable_alarm_time_window
           # we now run the wake action
           # doing this weird choose thing to make so it will create the automation
           # since I can't put call !input directly after the hyphen
@@ -193,7 +201,7 @@ action:
       - service: script.announce_sonos_alarm
         data:
           entity_id: !input speaker_id
-          time_window: !input announce_time_window
+          time_window: !input announce_alarm_time_window
           volume_level: !input announce_volume_level
 
       # next we start to play the music that was requested, assuming

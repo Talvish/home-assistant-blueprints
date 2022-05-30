@@ -16,7 +16,7 @@ This script is particularly convenient when:
 * You want to set a sleep timer but don't want the same music each night
 * You have a set of playlists you frequently listen to but like to mix it up
 
-## Additional notes ##
+## Additional Notes ##
 * I recommend setting the mode to `parallel` when using the same script for multiple automations
 * This blueprint is very similar to my [`play_media`](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234) script, except it takes a list of content ids instead of one
 * This blueprint has no inputs, but is meant to be a script called from automations  
@@ -241,14 +241,14 @@ sequence:
 mode: parallel
 icon: mdi:music-box-multiple-outline
 ````
-&nbsp;
+
 # Revisions #
 * _2022-04-24_: Initial release
 
-&nbsp;
 # Available Blueprints #
 * Script: [Script for Sonos Speakers to do Text-to-Speech and Handle Typical Oddities](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)
 * Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
 * Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
+* Script: [Play Random Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-random-media-script-w-shuffle-repeat-multi-room-volume-support/426445)
 * Script: [Play Media w/ Shuffle, Repeat, Multi-room, Volume support](https://community.home-assistant.io/t/play-media-script-w-shuffle-repeat-multi-room-volume-support/415234)
 * Others in my [GitHub repository](https://github.com/Talvish/home-assistant-blueprints)
