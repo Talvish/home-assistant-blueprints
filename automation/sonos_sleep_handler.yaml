@@ -224,7 +224,7 @@ action:
                           media_content_type: music # forcing music
                           entity_id: !input speaker_id
                           repeat: "all" # forcing repeat
-                          volume_level: !input announce_volume_level
+                          volume_level: !input music_volume_level
                           shuffle: true # forcing shuffle
                           media_content_ids: >
                             {{ music_content_ids }}
