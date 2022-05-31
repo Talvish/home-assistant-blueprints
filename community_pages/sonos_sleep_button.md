@@ -1,4 +1,4 @@
-This blueprint creates an automation that listens to a button press on a **Lutron Caseta Pico Remote** and depending on the time of day performs different actions on a **Sonos Speaker**:
+This blueprint creates an automation that listens for a button press on a **Lutron Caseta Pico Remote** and depending on the time of day performs different sleep / alarm actions on a **Sonos Speaker**:
 
 If pressed during the `Wake Phase` the automation will:
 * see if an alarm is playing and if so, stop it, otherwise temporarily disable an upcoming alarm 
@@ -35,13 +35,13 @@ This automation blueprint relies on three script blueprints I previously created
 
 3. Install the `Play Random Media` script blueprint (details [here](https://community.home-assistant.io/t/play-random-media-script-w-shuffle-repeat-multi-room-volume-support/426445)) and create a script with an `Entity ID` of `play_random_media` <br /> [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fplay_random_media.yaml) <br />... and finally ... <br/>
 
-4. Install the actual `Sonos Sleep Button` automation blueprint itself<br />
+4. Install the actual `Sonos Sleep Button` automation blueprint itself and create the automation<br />
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fautomation%2Fsonos_sleep_button.yaml)
 
 ## Additional Notes ##
-* This blueprint is a bit of an experiment, both technically (configurable triggers and actions) and experientially (see what it is like having dependencies on other blueprints); I'll post my thoughts on that later, but installing requires more tinkering/knowledge than is ideal. If the instructions below are insufficent, I will update them. 
+* This blueprint is an experiment, both technically (configurable triggers and actions) and experientially (see what it is like having dependencies on other blueprints); I'll post my thoughts on that later, but installing requires more tinkering/knowledge than is ideal. If the instructions below are insufficent, I will update them. 
 * This is one of my **favourite automations**. It simplifies sleep alarm handling down to one contextual button press. In my configuration, my `Sleep Phase` action includes turning off all downstairs lights and checking to see if the master bathroom is occupied and has lights on, and if so, dims the lights to the lowest setting to minimize light bleed into the master bedroom.
-* This blueprint requires `2022.5.0` because it runs the provided actions in parallel to the script actions
+* This blueprint requires Home Assistant `2022.5.0` because it runs the provided actions in parallel with the script actions
 * I recommend setting the mode to `single` since most 
 
 &nbsp;

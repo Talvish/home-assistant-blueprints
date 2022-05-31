@@ -17,14 +17,13 @@
 # Automation blueprint that makes sleeping and waking time convenient on Sonos.
 
 blueprint:
-  name: Sonos Sleep Button
+  name: Sonos Sleep / Alarm Button
   description:
-    This blueprint creates an automation that listens to a button press on a Lutron Caseta Pico remote
+    This blueprint creates an automation that listens for a button press on a Lutron Caseta Pico remote
     and depending on the time of day does different things. If pressed during the `Wake Phase` it will
-    look for an an alarm on a Sonos speaker and turn off, if playing now, or disable an upcoming alarm
-    (as not to wake your significant other). Finally, it will execute an optional action. If pressed
-    during the `Sleep Phase`, it starts with an optional action, then annouces when the next alarm is
-    set to run, and ends with some optional sleep music.
+    disable the current or upcoming alarm on a Sonos speaker disable, and execute an optional action.
+    If pressed during the `Sleep Phase`, it executes an optional action, annouce when the next alarm
+    is set to run, and ends with some optional sleep music.
   domain: automation
   homeassistant:
     min_version: 2022.5.0 # this is needed because we are using 'parallel' below
@@ -64,7 +63,7 @@ blueprint:
         time:
     wake_action:
       name: Wake Phase | Action
-      description: An action to run after the alarm is disabled. Examples could include opening blinds, playing music, etc.
+      description: An action to run while disabling the alarm. Examples could include opening blinds, playing music, etc.
       default: []
       selector:
         action:
@@ -92,8 +91,8 @@ blueprint:
     sleep_action:
       name: Sleep Phase | Action
       description:
-        An action to run before the announcing the alarm time and playing sleep music. Examples include turning
-        off lights.
+        An action to run while announcing the alarm time and playing sleep music. Examples include turning
+        off lights, turning down a thermostat, etc.
       default: []
       selector:
         action:
