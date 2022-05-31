@@ -19,15 +19,16 @@
 blueprint:
   name: Sonos Sleep Button
   description:
-    This blueprint creates an automation that listens to a button press on a Lutron Caseta Pico remote 
+    This blueprint creates an automation that listens to a button press on a Lutron Caseta Pico remote
     and depending on the time of day does different things. If pressed during the `Wake Phase` it will
     look for an an alarm on a Sonos speaker and turn off, if playing now, or disable an upcoming alarm
     (as not to wake your significant other). Finally, it will execute an optional action. If pressed
     during the `Sleep Phase`, it starts with an optional action, then annouces when the next alarm is
     set to run, and ends with some optional sleep music.
   domain: automation
+  homeassistant:
+    min_version: 2022.5.0 # this is needed because we are using 'parallel' below
   input:
-
     # general inputs
 
     speaker_id:
@@ -56,7 +57,7 @@ blueprint:
       name: Wake Phase | Start Time
       description:
         The time when someone may wake and need to disable alarm. It should be set a good amount of
-        time prior to when an alarm would go off but after you go to sleep. The `Wake Phase` ends 
+        time prior to when an alarm would go off but after you go to sleep. The `Wake Phase` ends
         at `Sleep Phase Start Time`.
       default: "04:00:00"
       selector:
@@ -79,13 +80,12 @@ blueprint:
           max: 360
           unit_of_measurement: minutes
           mode: slider
-    
+
     # sleep phase inputs
 
     sleep_start_time:
       name: Sleep Phase | Start Time
-      description:
-        A time close to when, though before, you go to sleep. The `Sleep Phase` ends at the `Wake Phase Start Time`.
+      description: A time close to when, though before, you go to sleep. The `Sleep Phase` ends at the `Wake Phase Start Time`.
       default: "18:00:00"
       selector:
         time:
@@ -173,62 +173,71 @@ action:
             after: !input wake_start_time
             before: !input sleep_start_time
         sequence:
-          # first thing here is to turn off the alrm, which uses and
-          # existing script I built, which needs to be manually added
-          - service: script.stop_sonos_alarm
-            data:
-              entity_id: !input speaker_id
-              time_window: !input disable_alarm_time_window
-          # we now run the wake action
+          # we run these in parallel since the stop alarm may have a long
+          # delay no it to re-enable the alarm
+          - parallel:
+              # first thing here is to turn off the alrm, which uses and
+              # existing script I built, which needs to be manually added
+              - service: script.stop_sonos_alarm
+                data:
+                  entity_id: !input speaker_id
+                  time_window: !input disable_alarm_time_window
+              # we now run the wake action
+              # doing this weird choose thing to make so it will create the automation
+              # since I can't put call !input directly after the hyphen
+              - choose:
+                  - conditions: >
+                      {{ false }}
+                    sequence: []
+                default: !input wake_action
+
+    default:
+      # we run the actions given to us, and the others in parallel
+      # since we don't know what it will do or take
+      - parallel:
+          # we start by running the sleep action
           # doing this weird choose thing to make so it will create the automation
           # since I can't put call !input directly after the hyphen
           - choose:
               - conditions: >
                   {{ false }}
                 sequence: []
-            default: !input wake_action
-
-    default:
-      # we start by running the sleep action
-      # doing this weird choose thing to make so it will create the automation
-      # since I can't put call !input directly after the hyphen
-      - choose:
-          - conditions: >
-              {{ false }}
-            sequence: []
-        default: !input sleep_action
-      # then get into announcing the alarm
-      - service: script.announce_sonos_alarm
-        data:
-          entity_id: !input speaker_id
-          time_window: !input announce_alarm_time_window
-          volume_level: !input announce_volume_level
-
-      # next we start to play the music that was requested, assuming
-      # it was given, this also uses an existing script I built which
-      # needs to be manually added
-      - choose:
-          - conditions: >
-              {{ music_content_ids != None and music_content_ids != "" }}
-            sequence:
-              - service: script.play_random_media
+            default: !input sleep_action
+          # but these actions, since they involve the sonos speaker
+          # we want to run in sequence
+          - sequence:
+              # we want to announce the alarm
+              - service: script.announce_sonos_alarm
                 data:
-                  media_content_type: music # forcing music
                   entity_id: !input speaker_id
-                  repeat: "all" # forcing repeat
+                  time_window: !input announce_alarm_time_window
                   volume_level: !input announce_volume_level
-                  shuffle: true # forcing shuffle
-                  media_content_ids: >
-                    {{ music_content_ids }}
-              # we clear out any existing sleep timer, just in case
-              - service: sonos.clear_sleep_timer
-                data:
-                  entity_id: !input speaker_id
-              # and now set the sleep timer
-              - service: sonos.set_sleep_timer
-                data:
-                  sleep_time: >
-                    {{ music_sleep_timer }}
-                  entity_id: !input speaker_id
-        default: []
-mode: single
+
+              # next we start to play the music that was requested, assuming
+              # it was given, this also uses an existing script I built which
+              # needs to be manually added
+              - choose:
+                  - conditions: >
+                      {{ music_content_ids != None and music_content_ids != "" }}
+                    sequence:
+                      - service: script.play_random_media
+                        data:
+                          media_content_type: music # forcing music
+                          entity_id: !input speaker_id
+                          repeat: "all" # forcing repeat
+                          volume_level: !input announce_volume_level
+                          shuffle: true # forcing shuffle
+                          media_content_ids: >
+                            {{ music_content_ids }}
+                      # we clear out any existing sleep timer, just in case
+                      - service: sonos.clear_sleep_timer
+                        data:
+                          entity_id: !input speaker_id
+                      # and now set the sleep timer
+                      - service: sonos.set_sleep_timer
+                        data:
+                          sleep_time: >
+                            {{ music_sleep_timer }}
+                          entity_id: !input speaker_id
+                default: []
+mode: restart

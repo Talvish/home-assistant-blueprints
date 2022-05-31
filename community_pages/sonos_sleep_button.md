@@ -12,8 +12,8 @@ If pressed during the `Sleep Phase`, the automation will:
 ## Script Inputs ##
 
 General inputs:
-* Sonos speaker to use for the alarms and music
-* Pico remote entity id and button
+* Sonos speaker id to use for the alarms and music
+* Pico remote id and button
 
 `Wake Phase` inputs:
 * Time when the phase starts
@@ -40,10 +40,9 @@ This automation blueprint relies on three script blueprints I previously created
 
 ## Additional Notes ##
 * This blueprint is a bit of an experiment, both technically (configurable triggers and actions) and experientially (see what it is like having dependencies on other blueprints); I'll post my thoughts on that later, but installing requires more tinkering/knowledge than is ideal. If the instructions below are insufficent, I will update them. 
-* This is my **favourite automation**. It simplifies sleep alarm handling down to one contextual button press. In my configuration, my `Sleep Phase` action includes turning off all downstairs lights and checking to see if the master bathroom is occupied and has lights on, and if so, dims the lights to the lowest setting to minimize light bleed into the master bedroom.
-
-
-* I recommend setting the mode to `single`
+* This is one of my **favourite automations**. It simplifies sleep alarm handling down to one contextual button press. In my configuration, my `Sleep Phase` action includes turning off all downstairs lights and checking to see if the master bathroom is occupied and has lights on, and if so, dims the lights to the lowest setting to minimize light bleed into the master bedroom.
+* This blueprint requires `2022.5.0` because it runs the provided actions in parallel to the script actions
+* I recommend setting the mode to `single` since most 
 
 &nbsp;
 
