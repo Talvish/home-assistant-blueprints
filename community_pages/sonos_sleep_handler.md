@@ -35,7 +35,7 @@ This automation blueprint relies on three script blueprints I previously created
 
 3. Install the `Play Random Media` script blueprint (details [here](https://community.home-assistant.io/t/play-random-media-script-w-shuffle-repeat-multi-room-volume-support/426445)) and create a script with an `Entity ID` of `play_random_media` <br /> [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fplay_random_media.yaml) <br />... and finally ... <br/>
 
-4. Install the actual `Sonos Sleep Button` automation blueprint itself and create the automation<br />
+4. Install the actual `Sonos Sleep Handler` automation blueprint itself and create the automation<br />
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fautomation%2Fsonos_sleep_handler.yaml)
 
 ## Additional Notes ##
@@ -66,7 +66,7 @@ This automation blueprint relies on three script blueprints I previously created
 # Automation blueprint that makes sleeping and waking time convenient on Sonos.
 
 blueprint:
-  name: Sonos Sleep / Alarm Button
+  name: Sonos Sleep / Alarm Handler
   description:
     This blueprint creates an automation that listens for a button press on a Lutron Caseta Pico remote
     and depending on the time of day does different things. If pressed during the `Wake Phase` it will

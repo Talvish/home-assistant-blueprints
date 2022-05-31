@@ -17,7 +17,7 @@
 # Automation blueprint that makes sleeping and waking time convenient on Sonos.
 
 blueprint:
-  name: Sonos Sleep / Alarm Button
+  name: Sonos Sleep / Alarm Handler
   description:
     This blueprint creates an automation that listens for a button press on a Lutron Caseta Pico remote
     and depending on the time of day does different things. If pressed during the `Wake Phase` it will
