@@ -239,4 +239,4 @@ action:
                             {{ music_sleep_timer }}
                           entity_id: !input speaker_id
                 default: []
-mode: restart
+mode: single
