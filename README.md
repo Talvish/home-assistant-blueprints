@@ -19,3 +19,11 @@ My goal is to create high quality blueprints that ease HA automation significant
 | --- | --- | --- |
 | [Sonos Sleep /  Alarm Handler](https://github.com/Talvish/home-assistant-blueprints/blob/main/automation/sonos_sleep_handler.yaml) | [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fautomation%2Fsonos_sleep_handler.yaml) | Listens for a button press and depending on when, will either disable an upcoming alarm and run a configurable action, or will announce the next alarm, play sleep music and run a configurable action. This uses a variety of the script blueprints found above. Additional details [here](https://community.home-assistant.io/t/automation-for-sonos-lutron-picos-to-magically-manage-sleep-alarms-and-music/426477).|
 | [Automatic Timed Turn Off](https://github.com/Talvish/home-assistant-blueprints/blob/main/automation/timed_turn_off.yaml) | [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fautomation%2Ftimed_turn_off.yaml) | Automatically turns off the specified switch after a given time period whenever the specified switch is turned on. This was my equivalent of `hello world` to figure out how to create blueprints.  |
+
+&nbsp;
+## Proposals
+In addition to actual blueprints, I have put together some thoughts on enhancements to blueprints.
+
+| Name |  Details |
+| --- | --- |
+| [Dependency support in Blueprints](https://community.home-assistant.io/t/dependency-support-in-blueprints-promote-reusability/428040) | Blueprints do not have dependency support leading to either cutting and pasting of code, or requiring users of blueprints to manually install multiple blueprints. This is a proposal to address the issue. |

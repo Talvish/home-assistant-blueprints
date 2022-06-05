@@ -19,7 +19,7 @@ In addition, the announce alarm blueprint would ideally use another script bluep
 
 When I released these blueprints I had to decided which of the two options were 'optimal':
 * For the alarm button handler blueprint I decided to keep the alarm announcement, stopping alarm and music playing as separate script blueprints and described how to install each of them. It was too much code to cut and paste into the alarm button handler
-* For the announcing of text, I decided to cut and paste the code into the announce alarm script blueprint because it wasn't a huge amount of code, and I belived it would otherwise diminish the chance of someone installing the announce alarm blueprint
+* For the announcing of text, I decided to cut and paste the code into the announce alarm script blueprint because it wasn't a huge amount of code, and I believed it would otherwise diminish the chance of someone installing the announce alarm blueprint
 
 # The Simple Proposal #
 
@@ -51,7 +51,7 @@ For the blueprint creator, that's all there is to it!
 ## Mini-FAQ ##
 **What kind of blueprints can be dependencies?**
 
-Only `scripts`; they are designed to be re-used. An error should be thrown for any other `domain` types
+Only `scripts`; they are designed to be re-used. An error should be thrown for any other `domain` types. I would love to see re-usable Jinja as well (may write that up later).
 
 **So dependencies can have dependencies?**
 
@@ -77,8 +77,8 @@ dependencies: # the following are script blueprints this blueprint requires
 
 
 ## Future considerations ##
-- Allow specifying inputs in the blueprint's `dependencies` sections as defaults 
-- Allow forcing "headless" / non-interactive installation (will requires inputs)
+- Allow specifying inputs in the blueprint's `dependencies` section as defaults 
+- Consider "headless" / non-interactive installation (requires inputs)
 - Consider versioning (beyond the URL)
 - Allow re-usable Jinja as a blueprint type
 
