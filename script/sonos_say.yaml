@@ -68,14 +68,29 @@ fields:
         max: 1
         step: 0.01
         mode: slider
+  min_wait:
+    name: "Minimum Wait"
+    description:
+      The minimum number fo seconds that the system will wait for state changes from
+      Sonos. Frequently Sonos will report state changes to HA before the state has
+      changed which can cause odd volume changes and cut-off messages. Setting this
+      value will help with both. Defaults to 0 if not set.
+    required: false
+    selector:
+      number:
+        min: 0
+        max: 60
+        step: 0.25
+        unit_of_measurement: seconds
+        mode: slider
+
   max_wait:
     name: "Maximum Wait"
     description:
-      The maximum number of seconds that the system will wait for the message to play
-      before continuing with the script. If the value is too short, the message may
-      get cut off. If this value isn't given, the system will calculate a value based on
-      the length of the string. This is likely fine for languages such as English and
-      French, but likely too short for languages such as Chinese.
+      After the system starts playing the message the system waits for the message
+      to finish play. This makes sure the systenm never waits forever. Recent changes
+      to this script make this less meaningful than the past. Defaults to 10 seconds
+      if not set.
     required: false
     selector:
       number:
@@ -130,27 +145,24 @@ variables:
     {%- else -%}
       {{ lang_hack }}
     {%- endif -%}
-  # try to approximate delays to use we do some simple checks based on text length,
-  # this approximation is generally fine for western languages, though not great
-  # for others BUT the range is 1 and 4 second, so not too long for hard delay
-  fixed_delay: >-
-    {# we use a rough estimate of speaking 16 characters per second, which is #}
-    {# high, but we put min of 1 second and max of 4 regardless for the fixed delay #}
-    {# this fixed delay seems to increase the chance of proper playback #}
-    {% set delay = ( message | length ) / 16 %}
-    {{ delay if ( delay >= 1 and delay <= 4 ) else 4 if delay >= 4 else 1 }}
+  # the state delay is used for forcing a wait after key state changes
+  # since the Sonos integration seems to report state too early which can cause
+  # audio being cut-off or volume changes being heard that shouldn't be.
+  state_delay: >-
+    {%- if min_wait is undefined or min_wait == None or not (min_wait is number) or min_wait < 0 -%}
+      {# bad or missing data means we just use a default of 0 #}
+      0
+    {%- else -%}
+      {{ min_wait }}
+    {%- endif -%}
   # the wait delay is used for monitoring when the speaker is done playing the
-  # message. Must be long enough to not cut the message off, but being too long
-  # is unlikely an issue since the state will change once the message is played
-  wait_delay: >-
-    {%- if max_wait is undefined or max_wait == None or not (max_wait is number) -%}
-      {# if we have a bad or missing max_wait then we calculate something based  #}
-      {# on the number of characters, which is great more for western languages #}
-      {# others may get cut off #}
-      {% set delay = ( ( message | length ) / 10 ) - fixed_delay %}
-      {{ delay if delay >= 1 else 1 }}
-    {%- elif max_wait < 1 -%}
-      1
+  # message but the wait occurs after a manual delay that looks at the duraction
+  # of media. It is okay for this to be long since the system is monitoring the
+  # state change
+  message_delay: >-
+    {%- if max_wait is undefined or max_wait == None or not (max_wait is number) or max_wait < 10 -%}
+      {# bad or missing data means we just use a default of 10 #}
+      10
     {%- else -%}
       {{ max_wait }}
     {%- endif -%}
@@ -175,7 +187,7 @@ sequence:
                     value_template: >
                       {{ is_state(entity_group_leader, 'playing') }}
                 sequence:
-                  # so it is playing, so we want to pause
+                  # it is playing, so we want to pause before volume changes
                   - service: media_player.media_pause
                     data:
                       entity_id: >
@@ -184,6 +196,12 @@ sequence:
                   - wait_template: "{{ states( entity_id ) != 'playing' }}"
                     timeout:
                       seconds: 2
+                  # we then put in a slight delay to ensure the pause
+                  - delay:
+                      seconds: >
+                        {{ state_delay | int }}
+                      milliseconds: >
+                        {{ ( ( state_delay - ( state_delay | int ) ) * 1000 ) | int }}
             default: []
           # now we can set the set the volume
           - service: media_player.volume_set
@@ -224,20 +242,40 @@ sequence:
   - wait_template: "{{ states( entity_id ) == 'playing' }}"
     timeout:
       seconds: 2 # timeout so doesn't sit forever
-  # we then put in a slight delay since the announcement can get cut off
-  - delay:
-      seconds: >
-        {{ fixed_delay | int }}
-      milliseconds: >
-        {{ ( ( fixed_delay - ( fixed_delay | int ) ) * 1000 ) | int }}
+  # we then put in a delay that should match the length of the media
+  - delay: >-
+      {# we grab the duration to try to set a wait that is roughly the right amount of time #}
+      {# this is returned in seconds, so not extact accurate #}
+      {% set duration = state_attr(entity_id, 'media_duration') %} 
+      {% if duration == None or duration <= 1 %} 
+        {# this should never happen, though sounds like there can be delays in response #}
+        {# to get the state, so we put a mininum of one second ... the waiting for the state #}
+        {# below should cover BUT if it doesn't than state_delay can make sure we are good #}
+        {{ "00:00:01" }}
+      {% else %} 
+        {# subtracting one to compensate for potential run time and not running extra long #}
+        {# if there is cut-off then the state_delay can cover #}
+        {% set duration = duration - 1 %} 
+        {% set seconds = duration % 60 %} 
+        {% set minutes = (duration / 60)|int % 60 %} 
+        {% set hours = (duration / 3600)|int %} 
+        {{ "{:02d}".format(hours) + ":" + "{:02d}".format(minutes) + ":" + "{:02d}".format(seconds)}}
+      {% endif %}
 
   # then we wait for it to finish announcing before we continue
   - wait_template: "{{ states( entity_id ) != 'playing' }}"
     timeout:
       seconds: > # timeout so doesn't sit forever
-        {{ wait_delay | int }}
+        {{ message_delay | int }}
       milliseconds: >
-        {{ ( ( wait_delay - ( wait_delay | int ) ) * 1000 ) | int }}
+        {{ ( ( message_delay - ( message_delay | int ) ) * 1000 ) | int }}
+
+  # we then put in a slight delay to ensure the playing finished
+  - delay:
+      seconds: >
+        {{ state_delay | int }}
+      milliseconds: >
+        {{ ( ( state_delay - ( state_delay | int ) ) * 1000 ) | int }}
 
   # and now we restore where we were which should cover repeat, what's playing, etc.
   # NOTE: so far this works when driven by Sonos or HA, but when driven from Alexa
