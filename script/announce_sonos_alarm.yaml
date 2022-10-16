@@ -35,15 +35,6 @@ blueprint:
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
   domain: script
-  input:
-    tts_service_name:
-      name: Text-To-Speech Service Name
-      description:
-        The text-to-speech service to use to announce the alarm. This must match your Home
-        Assistant configuration.
-      default: "google_translate_say"
-      selector:
-        text:
 
 fields:
   entity_id:
@@ -76,6 +67,33 @@ fields:
         min: 0
         max: 1
         step: 0.01
+        mode: slider
+  min_wait:
+    name: "Minimum Wait"
+    description:
+      The minimum number fo seconds that the system will wait for state changes from
+      Sonos. See the sonos_say script for details.
+    required: false
+    selector:
+      number:
+        min: 0
+        max: 60
+        step: 0.25
+        unit_of_measurement: seconds
+        mode: slider
+
+  max_wait:
+    name: "Maximum Wait"
+    description:
+      After the system starts playing the message the system waits for the message
+      to finish play. See the sonos_say script for details.
+    required: false
+    selector:
+      number:
+        min: 1
+        max: 60
+        step: 0.25
+        unit_of_measurement: seconds
         mode: slider
 
 variables:
@@ -198,15 +216,6 @@ variables:
     {%- else -%}
       {{ repeat }}
     {%- endif -%}
-  # oddly you can't get blueprint inputs directly into jina so putting the
-  # input into a variable so then in the engine variable I can verify values
-  tts_hack: !input tts_service_name
-  tts_engine: >-
-    {%- if tts_hack is undefined or tts_hack== None or tts_hack == "" -%}
-      tts.google_translate_say
-    {%- else -%}
-      tts.{{ tts_hack }}
-    {%- endif -%}
   message: >-
     {%- if alarm.found == false -%}
       {# an alarm wasn't found so we indicate that #}
@@ -289,51 +298,13 @@ variables:
     {%- endif -%}
 
 sequence:
-  # play the appropriate message, whether we found an alarm or we not
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ alarm.found == false }}"
-        sequence:
-          # didn't find alarm so indicate the period we checked over
-          - service: "{{ tts_engine }}"
-            data:
-              entity_id: "{{ entity_group_leader }}"
-              message: "{{ message }}"
-
-    default:
-      # found an alarm so we we indicate when the alarm will go over BUT we
-      # say different things if within two hours, same day, or tomorrow
-      - service: "{{ tts_engine }}"
-        data:
-          entity_id: "{{ entity_group_leader }}"
-          message: "{{ message }}"
-
-  # not sure why, but setting the repeat doesn't always properly take
-  # I can see it changing in the state  when the TTY goes the repeat
-  # turns back on ... calling to turn off again helps
-  - service: media_player.repeat_set
-    data:
-      repeat: "off"
-      entity_id: "{{ entity_group_leader }}"
-
-  # first we wait for it to start to properly announce the time
-  - wait_template: "{{ states( entity_id ) == 'playing' }}"
-    timeout:
-      seconds: 2 # timeout so doesn't sit forever
-  # we then put in a slight delay since the announcement can get cut off
-  - delay:
-      seconds: 4
-  # then we wait for it to finish announcing before we continue
-  - wait_template: "{{ states( entity_id ) != 'playing' }}"
-    timeout:
-      seconds: 20 # timeout so doesn't sit forever, but longer to ensure words are said
-
-  # and now we restore where we were which should cover repeat, what's playing, etc.
-  - service: sonos.restore
+  - service: script.sonos_say
     data:
       entity_id: "{{ entity_group_leader }}"
-      with_group: true
+      message: "{{ message }}"
+      volume_level: "{{ volume_level }}"
+      min_wait: "{{ min_wait }}"
+      max_wait: "{{ max_wait }}"
 
 mode: parallel
 max_exceeded: silent

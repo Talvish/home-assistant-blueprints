@@ -14,12 +14,18 @@ This script is particularly convenient when:
 * You don't want to check phone apps when going to bed to see if/when an alarm is set
 * You have have a phyiscal button near your bed (e.g. a Lutron Caseta Pico remote)
 
+## How to Install ##
+This automation blueprint relies on another script blueprint I previously created. Since Home Assistant blueprints don't support dependencies, the dependency has to be installed manually. I recommend the following installation order:
+1. Install the `Sonos Text-to-Speech` script blueprint (details [here](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)) and create a script with an `Entity ID` of `sonos_say` and optionally change the text-to-speech provider<br /> [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fsonos_say.yaml)
+
+2. Install this `Announce Sonos Alarm` automation blueprint <br />
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fannounce_sonos_alarm.yaml)
+
 ## Additional Notes ##
 
 * I recommend setting the mode to `parallel` when using the same script for multiple automations
 &nbsp;
 
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fannounce_sonos_alarm.yaml)
 
 ````yaml
 # ***************************************************************************
@@ -51,7 +57,7 @@ blueprint:
     until it rings. Otherwise the alarm will indicate the time when the alarm is set using a
     12 hour format (e.g. 1 AM vs 1 PM). If it cannot find an alarm it will indicate that as well.
 
-    The script will gracefully handle when speakers are in groups, and restore playing music 
+    The script will gracefully handle when speakers are in groups, and restore playing music
     after it announces the alarm.
 
     This is helpful as part of an automation when going to bed so you don't need to use a phone
@@ -59,15 +65,6 @@ blueprint:
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
   domain: script
-  input:
-    tts_service_name:
-      name: Text-To-Speech Service Name
-      description:
-        The text-to-speech service to use to announce the alarm. This must match your Home
-        Assistant configuration.
-      default: "google_translate_say"
-      selector:
-        text:
 
 fields:
   entity_id:
@@ -100,6 +97,33 @@ fields:
         min: 0
         max: 1
         step: 0.01
+        mode: slider
+  min_wait:
+    name: "Minimum Wait"
+    description:
+      The minimum number fo seconds that the system will wait for state changes from
+      Sonos. See the sonos_say script for details.
+    required: false
+    selector:
+      number:
+        min: 0
+        max: 60
+        step: 0.25
+        unit_of_measurement: seconds
+        mode: slider
+
+  max_wait:
+    name: "Maximum Wait"
+    description:
+      After the system starts playing the message the system waits for the message
+      to finish play. See the sonos_say script for details.
+    required: false
+    selector:
+      number:
+        min: 1
+        max: 60
+        step: 0.25
+        unit_of_measurement: seconds
         mode: slider
 
 variables:
@@ -222,169 +246,103 @@ variables:
     {%- else -%}
       {{ repeat }}
     {%- endif -%}
-  # oddly you can't get blueprint inputs directly into jina so putting the
-  # input into a variable so then in the engine variable I can verify values
-  tts_hack: !input tts_service_name
-  tts_engine: >-
-    {%- if tts_hack is undefined or tts_hack== None or tts_hack == "" -%}
-      tts.google_translate_say
+  message: >-
+    {%- if alarm.found == false -%}
+      {# an alarm wasn't found so we indicate that #}
+
+      {# calculate strings to indicate the hours / minutes we checked #} 
+      {# but words change depending IF / HOW MANY hours / minutes we have#}
+      {% set window_hours = ( valid_time_window / ( 60 ) ) | int -%}
+      {% set window_minutes = valid_time_window - ( window_hours * 60 ) -%}
+      {# so first the hours #}
+      {%- set hour_string = "" -%}
+      {%- if window_hours == 1 -%}
+        {%- set hour_string = "1 hour" -%}
+      {%- elif window_hours > 1 -%}
+        {%- set hour_string = ( window_hours | string) + " hours" -%}
+      {%- endif -%}
+      {# then the minutes #}
+      {%- set minute_string = "" -%}
+      {%- if window_minutes == 1 -%}
+        {%- set minute_string = "1 minute" -%}
+      {%- elif window_minutes > 1 -%}
+        {%- set minute_string = ( window_minutes | string) + " minutes" -%}
+      {%- endif -%}
+      {# then combine the hours and minutes #}
+      {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
+      {%- if delta_string == "" -%}
+        {# this should never happen, but will put something just in case #}
+        "Couldn't find an alarm"
+      {%- else -%}
+        "Couldn't find an alarm over the next {{ delta_string }}"
+      {%- endif -%}
+
     {%- else -%}
-      tts.{{ tts_hack }}
+      {# an alarm was found so we indicate that #}
+
+      {%- set window_timedelta = timedelta( hours = 2 ) -%}
+      {%- set alarm_timedelta = timedelta(hours=alarm.delta.hours, minutes=alarm.delta.minutes, seconds=alarm.delta.seconds) -%}
+      {%- if alarm_timedelta <= window_timedelta -%}
+        {# we are less than the two hour delta #}
+        {# calculate strings to indicate the hours / minutes until ringing #} 
+        {# but words change depending IF / HOW MANY hours / minutes we have#}
+        {# so first the hours #}
+        {%- set hour_string = "" -%}
+        {%- if alarm.delta.hours == 1 -%}
+          {%- set hour_string = "1 hour" -%}
+        {%- elif alarm.delta.hours > 1 -%}
+          {%- set hour_string = ( alarm.delta.hours | string) + " hours" -%}
+        {%- endif -%}
+        {# then the minutes #}
+        {%- set minute_string = "" -%}
+        {%- if alarm.delta.minutes == 1 -%}
+          {%- set minute_string = "1 minute" -%}
+        {%- elif alarm.delta.minutes > 1 -%}
+          {%- set minute_string = ( alarm.delta.minutes | string) + " minutes" -%}
+        {%- endif -%}
+        {# then combine the hours and minutes #}
+        {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
+        {%- if delta_string == "" -%}
+          {# if no hour or minute, it means it is about to go off #}
+          "Alarm rings in less than a minute" 
+        {%- else -%}
+          "Alarm rings in {{ delta_string }}"
+        {%- endif -%}
+
+      {%- else -%}
+        {# the time format on Sonos alarms is HH:MM:SS in 24-hour format #}
+        {# so we extract the hours and minutes and make it 12-hour based #}
+        {# and add the AM or PM #}
+        {%- set alarm_time_parts = alarm.time.split(':') -%}
+        {%- set alarm_time_hour = alarm_time_parts[0] | int -%}
+        {%- set alarm_time = ( alarm_time_parts[0] if alarm_time_hour < 13 else ( alarm_time_hour - 12 ) | string ) + ":" + alarm_time_parts[1] + ( " AM" if alarm_time_hour < 13 else " PM" ) -%}
+        
+        {% if today_at(alarm.time) < strptime(alarm.call_timestamp, "%Y-%m-%d %H:%M:%S.%f%z") %}
+          {# this means the alarm goes off tomorrow sometime, so add the tomorrow #}
+          "Alarm set for tomorrow at {{ alarm_time }}"
+        {%- else -%}            
+          {# this means the alarm goes off today #}
+          "Alarm set for {{ alarm_time }}"
+        {%- endif -%}
+      {%- endif -%}
     {%- endif -%}
 
 sequence:
-  # save current state so we can restore to whatever was happening previously
-  - service: sonos.snapshot
+  - service: script.sonos_say
     data:
       entity_id: "{{ entity_group_leader }}"
-      with_group: true
-  # we set the volume if it is defined, and in this case we only set the 
-  # speaker volume not the group leader volume
-  - choose:
-      - conditions: >
-          {{ volume_level is defined }}
-        sequence:
-          - service: media_player.volume_set
-            data:
-              volume_level: "{{ volume_level }}"
-              entity_id: "{{ entity_id }}"  
-  # we check to see if the player is in repeat state and turn off otherwise
-  # the alarm announcement will repeat forever
-  - choose:
-      - conditions: >
-          {{ entity_repeat_state != "off" }}
-        sequence:
-          - service: media_player.repeat_set
-            data:
-              repeat: "off"
-              entity_id: "{{ entity_group_leader }}"
-          - wait_template: "{{ state_attr( entity_group_leader, 'repeat' ) == 'off' }}"
-            timeout:
-              seconds: 4
-    default: []
-
-  # play the appropriate message, whether we found an alarm or we not
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ alarm.found == false }}"
-        sequence:
-          # didn't find alarm so indicate the period we checked over
-          - service: "{{ tts_engine }}"
-            data:
-              entity_id: "{{ entity_group_leader }}"
-              message: >
-                {# calculate strings to indicate the hours / minutes we checked #} 
-                {# but words change depending IF / HOW MANY hours / minutes we have#}
-                {% set window_hours = ( valid_time_window / ( 60 ) ) | int -%}
-                {% set window_minutes = valid_time_window - ( window_hours * 60 ) -%}
-                {# so first the hours #}
-                {%- set hour_string = "" -%}
-                {%- if window_hours == 1 -%}
-                  {%- set hour_string = "1 hour" -%}
-                {%- elif window_hours > 1 -%}
-                  {%- set hour_string = ( window_hours | string) + " hours" -%}
-                {%- endif -%}
-                {# then the minutes #}
-                {%- set minute_string = "" -%}
-                {%- if window_minutes == 1 -%}
-                  {%- set minute_string = "1 minute" -%}
-                {%- elif window_minutes > 1 -%}
-                  {%- set minute_string = ( window_minutes | string) + " minutes" -%}
-                {%- endif -%}
-                {# then combine the hours and minutes #}
-                {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
-                {%- if delta_string == "" -%}
-                  {# this should never happen, but will put something just in case #}
-                  "Could not find an alarm"
-                {%- else -%}
-                  "Could not find an alarm over the next {{ delta_string }}"
-                {%- endif -%}
-
-    default:
-      # found an alarm so we we indicate when the alarm will go over BUT we
-      # say different things if within two hours, same day, or tomorrow
-      - service: "{{ tts_engine }}"
-        data:
-          entity_id: "{{ entity_group_leader }}"
-          message: >
-            {%- set window_timedelta = timedelta( hours = 2 ) -%}
-            {%- set alarm_timedelta = timedelta(hours=alarm.delta.hours, minutes=alarm.delta.minutes, seconds=alarm.delta.seconds) -%}
-            {%- if alarm_timedelta <= window_timedelta -%}
-              {# we are less than the two hour delta #}
-              {# calculate strings to indicate the hours / minutes until ringing #} 
-              {# but words change depending IF / HOW MANY hours / minutes we have#}
-              {# so first the hours #}
-              {%- set hour_string = "" -%}
-              {%- if alarm.delta.hours == 1 -%}
-                {%- set hour_string = "1 hour" -%}
-              {%- elif alarm.delta.hours > 1 -%}
-                {%- set hour_string = ( alarm.delta.hours | string) + " hours" -%}
-              {%- endif -%}
-              {# then the minutes #}
-              {%- set minute_string = "" -%}
-              {%- if alarm.delta.minutes == 1 -%}
-                {%- set minute_string = "1 minute" -%}
-              {%- elif alarm.delta.minutes > 1 -%}
-                {%- set minute_string = ( alarm.delta.minutes | string) + " minutes" -%}
-              {%- endif -%}
-              {# then combine the hours and minutes #}
-              {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
-              {%- if delta_string == "" -%}
-                {# if no hour or minute, it means it is about to go off #}
-                "Alarm rings in less than a minute" 
-              {%- else -%}
-                "Alarm rings in {{ delta_string }}"
-              {%- endif -%}
-
-            {%- else -%}
-              {# the time format on Sonos alarms is HH:MM:SS in 24-hour format #}
-              {# so we extract the hours and minutes and make it 12-hour based #}
-              {# and add the AM or PM #}
-              {%- set alarm_time_parts = alarm.time.split(':') -%}
-              {%- set alarm_time_hour = alarm_time_parts[0] | int -%}
-              {%- set alarm_time = ( alarm_time_parts[0] if alarm_time_hour < 13 else ( alarm_time_hour - 12 ) | string ) + ":" + alarm_time_parts[1] + ( " AM" if alarm_time_hour < 13 else " PM" ) -%}
-              
-              {% if today_at(alarm.time) < strptime(alarm.call_timestamp, "%Y-%m-%d %H:%M:%S.%f%z") %}
-                {# this means the alarm goes off tomorrow sometime, so add the tomorrow #}
-                "Alarm set for tomorrow at {{ alarm_time }}"
-              {%- else -%}            
-                {# this means the alarm goes off today #}
-                "Alarm set for {{ alarm_time }}"
-              {%- endif -%}
-            {%- endif -%}
-
-  # not sure why, but setting the repeat doesn't always properly take
-  # I can see it changing in the state  when the TTY goes the repeat
-  # turns back on ... calling to turn off again helps
-  - service: media_player.repeat_set
-    data:
-      repeat: "off"
-      entity_id: "{{ entity_group_leader }}"
-
-  # first we wait for it to start to properly announce the time
-  - wait_template: "{{ states( entity_id ) == 'playing' }}"
-    timeout:
-      seconds: 2 # timeout so doesn't sit forever
-  # we then put in a slight delay since the announcement can get cut off
-  - delay:
-      seconds: 4
-  # then we wait for it to finish announcing before we continue
-  - wait_template: "{{ states( entity_id ) != 'playing' }}"
-    timeout:
-      seconds: 20 # timeout so doesn't sit forever, but longer to ensure words are said
-
-  # and now we restore where we were which should cover repeat, what's playing, etc.
-  - service: sonos.restore
-    data:
-      entity_id: "{{ entity_group_leader }}"
-      with_group: true
+      message: "{{ message }}"
+      volume_level: "{{ volume_level }}"
+      min_wait: "{{ min_wait }}"
+      max_wait: "{{ max_wait }}"
 
 mode: parallel
+max_exceeded: silent
 icon: mdi:account-voice
 ````
 
 # Revisions #
+* _2022-10-16_: Simplified implementation and now depends on the [Sonos Text-to-Speech script](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842) script making it take advantage of improvements
 * _2022-05-13_: Added setting volume and fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-07_: Initial release
 
