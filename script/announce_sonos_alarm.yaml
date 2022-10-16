@@ -71,7 +71,7 @@ fields:
   min_wait:
     name: "Minimum Wait"
     description:
-      The minimum number fo seconds that the system will wait for state changes from
+      The minimum number of seconds that the system will wait for state changes from
       Sonos. See the sonos_say script for details.
     required: false
     selector:

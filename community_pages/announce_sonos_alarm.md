@@ -6,9 +6,9 @@ The following field parameters can be given when the script is called:
 * _[required]_ Sonos speaker (that the alarms are attached to)
 * _[optional]_ Time window to look for an alarm to announce. Maximum time is 1439 minutes (23 hours and 59 minutes), minimum is 30 minutes and the default is 720 minutes (12 hours)
 * _[optional]_ Volume to used to play the announcement. This only impacts the indicated speaker, not the group.
-
-The following blueprint inputs can be given when creating the script:
-* _[optional]_ Text-to-Speech Service to use to make the announcements. Default is `google_translate_say`
+* _[optional]_ Minimum wait to ensure state changes in Sonos are correct (advanced setting). 
+* _[optional]_ Maximum wait to help ensure messages finish playing (advanced setting).
+* _[optional]_ Volume to used to play the announcement. This only impacts the indicated speaker, not the group.
 
 This script is particularly convenient when:
 * You don't want to check phone apps when going to bed to see if/when an alarm is set
@@ -16,10 +16,8 @@ This script is particularly convenient when:
 
 ## How to Install ##
 This automation blueprint relies on another script blueprint I previously created. Since Home Assistant blueprints don't support dependencies, the dependency has to be installed manually. I recommend the following installation order:
-1. Install the `Sonos Text-to-Speech` script blueprint (details [here](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)) and create a script with an `Entity ID` of `sonos_say` and optionally change the text-to-speech provider<br /> [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fsonos_say.yaml)
-
-2. Install this `Announce Sonos Alarm` automation blueprint <br />
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fannounce_sonos_alarm.yaml)
+1. Install the `Sonos Text-to-Speech` script blueprint (details [here](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)) and create a script with an `Entity ID` of `sonos_say` and optionally change the text-to-speech provider and language<br />[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fsonos_say.yaml)
+2. Install this `Announce Sonos Alarm` automation blueprint <br />[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTalvish%2Fhome-assistant-blueprints%2Fblob%2Fmain%2Fscript%2Fannounce_sonos_alarm.yaml)
 
 ## Additional Notes ##
 
@@ -342,7 +340,7 @@ icon: mdi:account-voice
 ````
 
 # Revisions #
-* _2022-10-16_: Simplified implementation and now depends on the [Sonos Text-to-Speech script](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842) script making it take advantage of improvements
+* _2022-10-16_: Simplified implementation and now depends on the [Sonos Text-to-Speech script](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842) script allowing it take advantage of improvements
 * _2022-05-13_: Added setting volume and fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-07_: Initial release
 
