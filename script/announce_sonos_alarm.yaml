@@ -27,7 +27,7 @@ blueprint:
     until it rings. Otherwise the alarm will indicate the time when the alarm is set using a
     12 hour format (e.g. 1 AM vs 1 PM). If it cannot find an alarm it will indicate that as well.
 
-    The script will gracefully handle when speakers are in groups, and restore playing music 
+    The script will gracefully handle when speakers are in groups, and restore playing music
     after it announces the alarm.
 
     This is helpful as part of an automation when going to bed so you don't need to use a phone
@@ -207,38 +207,88 @@ variables:
     {%- else -%}
       tts.{{ tts_hack }}
     {%- endif -%}
+  message: >-
+    {%- if alarm.found == false -%}
+      {# an alarm wasn't found so we indicate that #}
+
+      {# calculate strings to indicate the hours / minutes we checked #} 
+      {# but words change depending IF / HOW MANY hours / minutes we have#}
+      {% set window_hours = ( valid_time_window / ( 60 ) ) | int -%}
+      {% set window_minutes = valid_time_window - ( window_hours * 60 ) -%}
+      {# so first the hours #}
+      {%- set hour_string = "" -%}
+      {%- if window_hours == 1 -%}
+        {%- set hour_string = "1 hour" -%}
+      {%- elif window_hours > 1 -%}
+        {%- set hour_string = ( window_hours | string) + " hours" -%}
+      {%- endif -%}
+      {# then the minutes #}
+      {%- set minute_string = "" -%}
+      {%- if window_minutes == 1 -%}
+        {%- set minute_string = "1 minute" -%}
+      {%- elif window_minutes > 1 -%}
+        {%- set minute_string = ( window_minutes | string) + " minutes" -%}
+      {%- endif -%}
+      {# then combine the hours and minutes #}
+      {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
+      {%- if delta_string == "" -%}
+        {# this should never happen, but will put something just in case #}
+        "Couldn't find an alarm"
+      {%- else -%}
+        "Couldn't find an alarm over the next {{ delta_string }}"
+      {%- endif -%}
+
+    {%- else -%}
+      {# an alarm was found so we indicate that #}
+
+      {%- set window_timedelta = timedelta( hours = 2 ) -%}
+      {%- set alarm_timedelta = timedelta(hours=alarm.delta.hours, minutes=alarm.delta.minutes, seconds=alarm.delta.seconds) -%}
+      {%- if alarm_timedelta <= window_timedelta -%}
+        {# we are less than the two hour delta #}
+        {# calculate strings to indicate the hours / minutes until ringing #} 
+        {# but words change depending IF / HOW MANY hours / minutes we have#}
+        {# so first the hours #}
+        {%- set hour_string = "" -%}
+        {%- if alarm.delta.hours == 1 -%}
+          {%- set hour_string = "1 hour" -%}
+        {%- elif alarm.delta.hours > 1 -%}
+          {%- set hour_string = ( alarm.delta.hours | string) + " hours" -%}
+        {%- endif -%}
+        {# then the minutes #}
+        {%- set minute_string = "" -%}
+        {%- if alarm.delta.minutes == 1 -%}
+          {%- set minute_string = "1 minute" -%}
+        {%- elif alarm.delta.minutes > 1 -%}
+          {%- set minute_string = ( alarm.delta.minutes | string) + " minutes" -%}
+        {%- endif -%}
+        {# then combine the hours and minutes #}
+        {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
+        {%- if delta_string == "" -%}
+          {# if no hour or minute, it means it is about to go off #}
+          "Alarm rings in less than a minute" 
+        {%- else -%}
+          "Alarm rings in {{ delta_string }}"
+        {%- endif -%}
+
+      {%- else -%}
+        {# the time format on Sonos alarms is HH:MM:SS in 24-hour format #}
+        {# so we extract the hours and minutes and make it 12-hour based #}
+        {# and add the AM or PM #}
+        {%- set alarm_time_parts = alarm.time.split(':') -%}
+        {%- set alarm_time_hour = alarm_time_parts[0] | int -%}
+        {%- set alarm_time = ( alarm_time_parts[0] if alarm_time_hour < 13 else ( alarm_time_hour - 12 ) | string ) + ":" + alarm_time_parts[1] + ( " AM" if alarm_time_hour < 13 else " PM" ) -%}
+        
+        {% if today_at(alarm.time) < strptime(alarm.call_timestamp, "%Y-%m-%d %H:%M:%S.%f%z") %}
+          {# this means the alarm goes off tomorrow sometime, so add the tomorrow #}
+          "Alarm set for tomorrow at {{ alarm_time }}"
+        {%- else -%}            
+          {# this means the alarm goes off today #}
+          "Alarm set for {{ alarm_time }}"
+        {%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
 
 sequence:
-  # save current state so we can restore to whatever was happening previously
-  - service: sonos.snapshot
-    data:
-      entity_id: "{{ entity_group_leader }}"
-      with_group: true
-  # we set the volume if it is defined, and in this case we only set the 
-  # speaker volume not the group leader volume
-  - choose:
-      - conditions: >
-          {{ volume_level is defined }}
-        sequence:
-          - service: media_player.volume_set
-            data:
-              volume_level: "{{ volume_level }}"
-              entity_id: "{{ entity_id }}"  
-  # we check to see if the player is in repeat state and turn off otherwise
-  # the alarm announcement will repeat forever
-  - choose:
-      - conditions: >
-          {{ entity_repeat_state != "off" }}
-        sequence:
-          - service: media_player.repeat_set
-            data:
-              repeat: "off"
-              entity_id: "{{ entity_group_leader }}"
-          - wait_template: "{{ state_attr( entity_group_leader, 'repeat' ) == 'off' }}"
-            timeout:
-              seconds: 4
-    default: []
-
   # play the appropriate message, whether we found an alarm or we not
   - choose:
       - conditions:
@@ -249,33 +299,7 @@ sequence:
           - service: "{{ tts_engine }}"
             data:
               entity_id: "{{ entity_group_leader }}"
-              message: >
-                {# calculate strings to indicate the hours / minutes we checked #} 
-                {# but words change depending IF / HOW MANY hours / minutes we have#}
-                {% set window_hours = ( valid_time_window / ( 60 ) ) | int -%}
-                {% set window_minutes = valid_time_window - ( window_hours * 60 ) -%}
-                {# so first the hours #}
-                {%- set hour_string = "" -%}
-                {%- if window_hours == 1 -%}
-                  {%- set hour_string = "1 hour" -%}
-                {%- elif window_hours > 1 -%}
-                  {%- set hour_string = ( window_hours | string) + " hours" -%}
-                {%- endif -%}
-                {# then the minutes #}
-                {%- set minute_string = "" -%}
-                {%- if window_minutes == 1 -%}
-                  {%- set minute_string = "1 minute" -%}
-                {%- elif window_minutes > 1 -%}
-                  {%- set minute_string = ( window_minutes | string) + " minutes" -%}
-                {%- endif -%}
-                {# then combine the hours and minutes #}
-                {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
-                {%- if delta_string == "" -%}
-                  {# this should never happen, but will put something just in case #}
-                  "Could not find an alarm"
-                {%- else -%}
-                  "Could not find an alarm over the next {{ delta_string }}"
-                {%- endif -%}
+              message: "{{ message }}"
 
     default:
       # found an alarm so we we indicate when the alarm will go over BUT we
@@ -283,52 +307,7 @@ sequence:
       - service: "{{ tts_engine }}"
         data:
           entity_id: "{{ entity_group_leader }}"
-          message: >
-            {%- set window_timedelta = timedelta( hours = 2 ) -%}
-            {%- set alarm_timedelta = timedelta(hours=alarm.delta.hours, minutes=alarm.delta.minutes, seconds=alarm.delta.seconds) -%}
-            {%- if alarm_timedelta <= window_timedelta -%}
-              {# we are less than the two hour delta #}
-              {# calculate strings to indicate the hours / minutes until ringing #} 
-              {# but words change depending IF / HOW MANY hours / minutes we have#}
-              {# so first the hours #}
-              {%- set hour_string = "" -%}
-              {%- if alarm.delta.hours == 1 -%}
-                {%- set hour_string = "1 hour" -%}
-              {%- elif alarm.delta.hours > 1 -%}
-                {%- set hour_string = ( alarm.delta.hours | string) + " hours" -%}
-              {%- endif -%}
-              {# then the minutes #}
-              {%- set minute_string = "" -%}
-              {%- if alarm.delta.minutes == 1 -%}
-                {%- set minute_string = "1 minute" -%}
-              {%- elif alarm.delta.minutes > 1 -%}
-                {%- set minute_string = ( alarm.delta.minutes | string) + " minutes" -%}
-              {%- endif -%}
-              {# then combine the hours and minutes #}
-              {%- set delta_string = hour_string + ( " and " if ( hour_string != "" and minute_string != "" ) else "" ) + minute_string  -%}
-              {%- if delta_string == "" -%}
-                {# if no hour or minute, it means it is about to go off #}
-                "Alarm rings in less than a minute" 
-              {%- else -%}
-                "Alarm rings in {{ delta_string }}"
-              {%- endif -%}
-
-            {%- else -%}
-              {# the time format on Sonos alarms is HH:MM:SS in 24-hour format #}
-              {# so we extract the hours and minutes and make it 12-hour based #}
-              {# and add the AM or PM #}
-              {%- set alarm_time_parts = alarm.time.split(':') -%}
-              {%- set alarm_time_hour = alarm_time_parts[0] | int -%}
-              {%- set alarm_time = ( alarm_time_parts[0] if alarm_time_hour < 13 else ( alarm_time_hour - 12 ) | string ) + ":" + alarm_time_parts[1] + ( " AM" if alarm_time_hour < 13 else " PM" ) -%}
-              
-              {% if today_at(alarm.time) < strptime(alarm.call_timestamp, "%Y-%m-%d %H:%M:%S.%f%z") %}
-                {# this means the alarm goes off tomorrow sometime, so add the tomorrow #}
-                "Alarm set for tomorrow at {{ alarm_time }}"
-              {%- else -%}            
-                {# this means the alarm goes off today #}
-                "Alarm set for {{ alarm_time }}"
-              {%- endif -%}
-            {%- endif -%}
+          message: "{{ message }}"
 
   # not sure why, but setting the repeat doesn't always properly take
   # I can see it changing in the state  when the TTY goes the repeat
