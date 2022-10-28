@@ -3,12 +3,12 @@ This blueprint is used to add a script that will announce when the next alarm is
 It will gracefully handle when speakers are in groups, and restore playing music after it announces the alarm.
 
 The following field parameters can be given when the script is called:
-* _[required]_ Sonos speaker (that the alarms are attached to)
+* _[required]_ Sonos speaker to check for an alarm 
+* _[optional]_ Sonos speaker to announce the time of alarm
 * _[optional]_ Time window to look for an alarm to announce. Maximum time is 1439 minutes (23 hours and 59 minutes), minimum is 30 minutes and the default is 720 minutes (12 hours)
-* _[optional]_ Volume to used to play the announcement. This only impacts the indicated speaker, not the group.
+* _[optional]_ Volume to used to play the announcement. 
 * _[optional]_ Minimum wait to ensure state changes in Sonos are correct (advanced setting). 
 * _[optional]_ Maximum wait to help ensure messages finish playing (advanced setting).
-* _[optional]_ Volume to used to play the announcement. This only impacts the indicated speaker, not the group.
 
 This script is particularly convenient when:
 * You don't want to check phone apps when going to bed to see if/when an alarm is set
@@ -44,7 +44,6 @@ This automation blueprint relies on another script blueprint I previously create
 
 # Announces when the next alarm is set on a Sonos speaker.
 # Future considerations
-# - script-based optional playback vs alarm speaker
 # - blueprint-based 12 vs 24 clock
 
 blueprint:
@@ -66,13 +65,25 @@ blueprint:
 
 fields:
   entity_id:
-    description: The entity id of the Sonos speaker to find the alarm and then announce the alarm on.
-    name: Entity
+    description:
+      The entity id of the Sonos speaker to find the alarm and, if `announce_entity_id`
+      isn't set, then the speaker to announce on.
+    name: Alarm Entity
     required: true
     selector:
       entity:
         domain: media_player
         integration: sonos
+  announce_entity_id:
+    description:
+      An optional entity id for a speaker, which doesn't have to be from Sonos,
+      to announce the alarm found on `entity_id`. If this isn't specified then
+      the alarm is announced on `entity_id`.
+    name: Announce Entity
+    required: false
+    selector:
+      entity:
+        domain: media_player
   time_window:
     name: Time Window
     description:
@@ -218,32 +229,32 @@ variables:
     {%- else -%}
       {{ { "found": false } }}
     {%- endif -%}
-  entity_group_leader: >-
-    {# we see if in a group since the repeat is typically controlled by it #}
-    {# we use this for doing all the work since it is the primary speaker #}
-    {# and everything will be shared across speakers anyhow #}
-    {%- set group_members = state_attr( entity_id, "group_members" ) -%}
-    {%- if group_members == None -%}
-      {# we maybe on an older version of HA, so look for a different group name#}
-      {%- set group_members = state_attr( entity_id, "sonos_group" ) -%}
+  actual_announce_entity_id: >-
+    {# for playback we see if we have an announce_entity_id and use it #}
+    {# otherwise we use the entity_id #}
+    {%- if announce_entity_id is undefined or announce_entity_id == None or announce_entity_id == "" -%}
+      {# so we don't have an announce_entity_id so now we see if we #}
+      {# are in a group since the repeat is typically controlled by it #}
+      {# we use this for doing all the work since it is the primary speaker #}
+      {# and everything will be shared across speakers anyhow #}
+      {%- set group_members = state_attr( entity_id, "group_members" ) -%}
       {%- if group_members == None -%}
-        {{ entity_id }}
+        {# we maybe on an older version of HA, so look for a different group name#}
+        {%- set group_members = state_attr( entity_id, "sonos_group" ) -%}
+        {%- if group_members == None -%}
+          {{ entity_id }}
+        {%- else -%}
+          {{ group_members[0] }}
+        {%- endif -%}
       {%- else -%}
+        {# the first seems to be the control, at least on Sonos #}
         {{ group_members[0] }}
       {%- endif -%}
     {%- else -%}
-      {# the first seems to be the control, at least on Sonos #}
-      {{ group_members[0] }}
+      {# we have the announce_entity_id, so we use it #}
+      {{ announce_entity_id }}
     {%- endif -%}
-  entity_repeat_state: >-
-    {# we grab the repeat state so that if in repeat mode we turn off #}
-    {# and also sanity check that we got a value otherwise default to off #}
-    {%- set repeat = state_attr( entity_group_leader, "repeat" ) -%}
-    {%- if repeat == None -%}
-      off
-    {%- else -%}
-      {{ repeat }}
-    {%- endif -%}
+
   message: >-
     {%- if alarm.found == false -%}
       {# an alarm wasn't found so we indicate that #}
@@ -328,11 +339,11 @@ variables:
 sequence:
   - service: script.sonos_say
     data:
-      entity_id: "{{ entity_group_leader }}"
+      entity_id: "{{ actual_announce_entity_id }}"
       message: "{{ message }}"
-      volume_level: "{{ volume_level }}"
-      min_wait: "{{ min_wait }}"
-      max_wait: "{{ max_wait }}"
+      volume_level: "{{ volume_level|default(None) }}"
+      min_wait: "{{ min_wait|default(None) }}"
+      max_wait: "{{ max_wait|default(None) }}"
 
 mode: parallel
 max_exceeded: silent
@@ -340,6 +351,7 @@ icon: mdi:account-voice
 ````
 
 # Revisions #
+* _2022-10-28_: Added optional playback speaker and added better handling of optional parameters for volume and waits
 * _2022-10-16_: Simplified implementation and now depends on the [Sonos Text-to-Speech script](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842) script allowing it take advantage of improvements
 * _2022-05-13_: Added setting volume and fixed bug when Sonos reports `recurrence` as `WEEKDAYS` and `WEEKENDS` 
 * _2022-05-07_: Initial release

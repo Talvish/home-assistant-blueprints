@@ -71,10 +71,11 @@ fields:
   min_wait:
     name: "Minimum Wait"
     description:
-      The minimum number fo seconds that the system will wait for state changes from
-      Sonos. Frequently Sonos will report state changes to HA before the state has
-      changed which can cause odd volume changes and cut-off messages. Setting this
-      value will help with both. Defaults to 0 if not set.
+      The minimum number of seconds that the system will wait for state changes from
+      Sonos. Frequently the Sonos integration reports state changes too early, misses
+      some state quick enough which can result in odd volume changes, cut-off messages
+      and even, when the message is very short, long delays before continuing to play
+      previously running media. Setting this value will help. Defaults to 0 if not set.
     required: false
     selector:
       number:
@@ -177,7 +178,7 @@ sequence:
   # speaker volume not the group leader volume
   - choose:
       - conditions: >
-          {{ volume_level is defined }}
+          {{ volume_level is defined and volume_level != None and volume_level is number }}
         sequence:
           - choose:
               # see if the speaker is playing and pause it is so you don't
@@ -242,6 +243,17 @@ sequence:
   - wait_template: "{{ states( entity_id ) == 'playing' }}"
     timeout:
       seconds: 2 # timeout so doesn't sit forever
+
+  # we put a slight delay in here to ensure that the grabbing of the media
+  # duration below is likely to succeed, which tends to be crucial for short
+  # messages, otherwise it seems to take the full media length from what was
+  # previously playing
+  - delay:
+      seconds: >
+        {{ state_delay | int }}
+      milliseconds: >
+        {{ ( ( state_delay - ( state_delay | int ) ) * 1000 ) | int }}
+
   # we then put in a delay that should match the length of the media
   - delay: >-
       {# we grab the duration to try to set a wait that is roughly the right amount of time #}
