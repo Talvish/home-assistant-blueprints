@@ -18,8 +18,7 @@ The following blueprint inputs can be given when creating the script:
 * _[optional]_ Language to say messages in. Default is `en`.
 
 This script is particularly convenient when:
-* You want to announce something on a Sonos speaker but want the speakers to continue what they were doing
-  when playback completes (e.g. opening a dishwasher and announcing the dishes are clean on a kitchen speaker)
+* You want to announce something on a Sonos speaker but want the speakers to continue what they were doing when playback completes (e.g. opening a dishwasher and announcing the dishes are clean on a kitchen speaker)
 
 ## Additional Notes ##
 
