@@ -245,6 +245,8 @@ icon: mdi:music-box-multiple-outline
 * _2022-04-24_: Initial release
 
 # Available Blueprints #
+* Automation: [Lutron Pico Media Remote for Contextually Handling Music or Xbox on Sonos Speakers](https://community.home-assistant.io/t/lutron-pico-media-remote-for-contextually-handling-music-or-xbox-on-sonos-speakers/484748)
+* Automation: [Automation for Sonos + Lutron Picos to Magically Manage Sleep Alarms and Music](https://community.home-assistant.io/t/automation-for-sonos-lutron-picos-to-magically-manage-sleep-alarms-and-music/426477)
 * Script: [Script for Sonos Speakers to do Text-to-Speech and Handle Typical Oddities](https://community.home-assistant.io/t/script-for-sonos-speakers-to-do-text-to-speech-and-handle-typical-oddities/424842)
 * Script: [Script for Sonos Speakers to Announce Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-announce-upcoming-alarm/419700)
 * Script: [Script for Sonos Speakers to Stop Current Alarm or Temporarily Disable Upcoming Alarm](https://community.home-assistant.io/t/script-for-sonos-speakers-to-stop-current-alarm-or-temporarily-disable-upcoming-alarm/417610)
