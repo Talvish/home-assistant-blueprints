@@ -108,6 +108,20 @@ fields:
         step: 0.01
         mode: slider
 
+variables:
+  # we put this here so we can easily see what was chosen and was seeing some
+  # oddities when put directly in the call itself
+  media_content_id: >-
+    {% if media_content_ids is string %}
+      {{media_content_ids}}
+    {% elif media_content_ids is mapping %}
+      "dictionary object isn't support"
+    {% elif media_content_ids is iterable %} 
+      {{ media_content_ids | random }}
+    {% else %}
+      "specified object isn't support"
+    {% endif %}
+
 sequence:
   # if group members are defined then we do a grouping
   - choose:
@@ -190,16 +204,7 @@ sequence:
   # assuming we have the right media type
   - service: media_player.play_media
     data:
-      media_content_id: >-
-        {% if media_content_ids is string %}
-          "{{media_content_ids}}" 
-        {% elif media_content_ids is mapping %}
-          "dictionary object isn't support"
-        {% elif media_content_ids is iterable %} 
-          "{{ media_content_ids | random }}"
-        {% else %}
-          "specified object isn't support"
-        {% endif %}
+      media_content_id: "{{ media_content_id }}"
       media_content_type: "{{ media_content_type }}"
       entity_id: "{{ entity_id }}"
 
@@ -238,10 +243,12 @@ sequence:
     default: []
 
 mode: parallel
+max_exceeded: silent
 icon: mdi:music-box-multiple-outline
 ````
 
 # Revisions #
+* _2022-11-06_: Fixed issue with radio stations not working due to string quote handling in the media content id
 * _2022-04-24_: Initial release
 
 # Available Blueprints #
