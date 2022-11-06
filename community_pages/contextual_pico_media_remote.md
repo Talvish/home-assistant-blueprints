@@ -222,7 +222,7 @@ variables:
     {{ current_group_members == None or current_group_members|length == 0 or ( current_group_members|length == 1 and speaker_entity_id in current_group_members ) }}
   is_xbox_on: >-
     {%- set xbox_state = states(xbox_entity_id) -%}
-    {{ xbox_state == 'on' or xbox_state == 'playing' }}
+    {{ not xbox_state == 'off'}}
 
 trigger:
   - platform: device
