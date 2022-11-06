@@ -153,19 +153,22 @@ variables:
   # checks we create some variables
   is_speaker_source_tv: >-
     {{ is_state_attr( speaker_entity_id, 'source', 'TV') }}
-  is_speaker_media_set: >-
-    {%- set duration = state_attr(speaker_entity_id, 'media_duration') -%}
-    {%- if duration == None or duration <= -1 -%}
-      {{ false }}
-    {%- else -%}
-      {{ true }}
-    {%- endif -%}
   is_speaker_playing: >-
     {{ is_state(speaker_entity_id, 'playing') }}
+  is_speaker_media_set: >-
+    {%- set duration = state_attr(speaker_entity_id, 'media_duration') -%}
+    {# we consider it set if there is a duration, or if we aren't on the tv but the speaker is playing, or #}
+    {# this will cover things like radio stations which typically don't have a duration #}
+    {%- if ( duration != None and duration >= 0 ) or ( ( not is_speaker_source_tv ) and is_speaker_playing ) -%}
+      {{ true }}
+    {%- else -%}
+      {{ false }}
+    {%- endif -%}
   is_speaker_lonely: >-
     {{ current_group_members == None or current_group_members|length == 0 or ( current_group_members|length == 1 and speaker_entity_id in current_group_members ) }}
   is_xbox_on: >-
-    {{ is_state(xbox_entity_id, 'on') }}
+    {%- set xbox_state = states(xbox_entity_id) -%}
+    {{ xbox_state == 'on' or xbox_state == 'playing' }}
 
 trigger:
   - platform: device
