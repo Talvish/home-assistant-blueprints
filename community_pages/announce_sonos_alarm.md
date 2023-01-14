@@ -27,7 +27,7 @@ This automation blueprint relies on another script blueprint I previously create
 
 ````yaml
 # ***************************************************************************
-# *  Copyright 2022 Joseph Molnar
+# *  Copyright 2022-2023 Joseph Molnar
 # *
 # *  Licensed under the Apache License, Version 2.0 (the "License");
 # *  you may not use this file except in compliance with the License.
@@ -110,7 +110,7 @@ fields:
   min_wait:
     name: "Minimum Wait"
     description:
-      The minimum number fo seconds that the system will wait for state changes from
+      The minimum number of seconds that the system will wait for state changes from
       Sonos. See the sonos_say script for details.
     required: false
     selector:
@@ -123,9 +123,7 @@ fields:
 
   max_wait:
     name: "Maximum Wait"
-    description:
-      After the system starts playing the message the system waits for the message
-      to finish play. See the sonos_say script for details.
+    description: THIS IS DEPRECATED AND WILL BE REMOVED IN FUTURE VERSIONS
     required: false
     selector:
       number:
@@ -348,6 +346,7 @@ sequence:
 mode: parallel
 max_exceeded: silent
 icon: mdi:account-voice
+
 ````
 
 # Revisions #

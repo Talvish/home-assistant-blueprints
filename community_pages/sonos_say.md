@@ -3,6 +3,8 @@ handles oddities to ensure a proper message playing experience. Examples include
 * Saving the state of the Sonos and restoring when done (so music will stop and continue)
 * Handling speakers in groups (for both old and newer versions of HA)
 * Pausing music so volume adjustments don't impact current music
+* Applies volume to all grouped speakers
+* Independent of volume, unmutes all grouped speakers
 * Disabling repeat so that the announcement doesn't repeat 
 * Handling delays to ensure proper handling of volume setting and playback cut-offs
 
@@ -11,7 +13,6 @@ The following field parameters can be given when the script is called:
 * _[required]_ Text of the message to say
 * _[optional]_ Volume for message playback. This only impacts the indicated speaker, not the group, and reverts when done.
 * _[optional]_ Minimum number of seconds that the system will wait after state changes in Sonos
-* _[optional]_ Maximum number of seconds that the system will wait after a message has played
 
 The following blueprint inputs can be given when creating the script:
 * _[optional]_ Text-to-Speech Service engine to use to say the specified message. Default is `google_translate_say`.
@@ -29,7 +30,7 @@ This script is particularly convenient when:
 
 ````yaml
 # ***************************************************************************
-# *  Copyright 2022 Joseph Molnar
+# *  Copyright 2022-2023 Joseph Molnar
 # *
 # *  Licensed under the Apache License, Version 2.0 (the "License");
 # *  you may not use this file except in compliance with the License.
@@ -51,7 +52,7 @@ blueprint:
   description:
     This blueprint is used to add a script that will say messages on Sonos speakers. The script
     handles oddities to ensure a proper experience including saving/restore state, handling
-    speaker groups, pausing music, disabling repeat, adding delays, etc.
+    speaker groups, unmuting, pausing music, disabling repeat, adding delays, etc.
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
   domain: script
@@ -117,11 +118,7 @@ fields:
 
   max_wait:
     name: "Maximum Wait"
-    description:
-      After the system starts playing the message the system waits for the message
-      to finish play. This makes sure the systenm never waits forever. Recent changes
-      to this script make this less meaningful than the past. Defaults to 10 seconds
-      if not set.
+    description: THIS IS DEPRECATED AND WILL BE REMOVED IN FUTURE VERSIONS
     required: false
     selector:
       number:
@@ -132,6 +129,20 @@ fields:
         mode: slider
 
 variables:
+  entity_group: >-
+    {# some operations we will be doing against the group, so need the group #}
+    {%- set group_members = state_attr( entity_id, "group_members" ) -%}
+    {%- if group_members == None -%}
+      {# we maybe on an older version of HA, so look for a different group name#}
+      {%- set group_members = state_attr( entity_id, "sonos_group" ) -%}
+      {%- if group_members == None -%}
+        {{ entity_id }}
+      {%- else -%}
+        {{ group_members | join(', ') }}
+      {%- endif -%}
+    {%- else -%}
+      {{ group_members | join(', ') }}
+    {%- endif -%}
   entity_group_leader: >-
     {# we see if in a group since the repeat is typically controlled by it #}
     {# we use this for doing all the work since it is the primary speaker #}
@@ -182,20 +193,9 @@ variables:
   state_delay: >-
     {%- if min_wait is undefined or min_wait == None or not (min_wait is number) or min_wait < 0 -%}
       {# bad or missing data means we just use a default of 0 #}
-      0
+      00:00:00
     {%- else -%}
-      {{ min_wait }}
-    {%- endif -%}
-  # the wait delay is used for monitoring when the speaker is done playing the
-  # message but the wait occurs after a manual delay that looks at the duraction
-  # of media. It is okay for this to be long since the system is monitoring the
-  # state change
-  message_delay: >-
-    {%- if max_wait is undefined or max_wait == None or not (max_wait is number) or max_wait < 10 -%}
-      {# bad or missing data means we just use a default of 10 #}
-      10
-    {%- else -%}
-      {{ max_wait }}
+      {{ "00:00:" + "{:02d}".format(min_wait | int ) + "." +  "{:03d}".format( ( ( min_wait - ( min_wait | int ) ) * 1000 ) | int ) }}
     {%- endif -%}
 
 sequence:
@@ -204,41 +204,28 @@ sequence:
     data:
       entity_id: "{{ entity_group_leader }}"
       with_group: true
-  # we set the volume if it is defined, and in this case we only set the
-  # speaker volume not the group leader volume
+
+  # if something is playing, we pause...this is nice if you are changing the
+  # volume since you won't hear the volume adjust on what is currently playing
   - choose:
-      - conditions: >
-          {{ volume_level is defined and volume_level != None and volume_level is number }}
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ is_state(entity_group_leader, 'playing') }}
         sequence:
-          - choose:
-              # see if the speaker is playing and pause it is so you don't
-              # hear the volume adjust on the current playing audio
-              - conditions:
-                  - condition: template
-                    value_template: >
-                      {{ is_state(entity_group_leader, 'playing') }}
-                sequence:
-                  # it is playing, so we want to pause before volume changes
-                  - service: media_player.media_pause
-                    data:
-                      entity_id: >
-                        {{ entity_group_leader }}
-                  # and do a quick to make sure it isnt' playing
-                  - wait_template: "{{ states( entity_id ) != 'playing' }}"
-                    timeout:
-                      seconds: 2
-                  # we then put in a slight delay to ensure the pause
-                  - delay:
-                      seconds: >
-                        {{ state_delay | int }}
-                      milliseconds: >
-                        {{ ( ( state_delay - ( state_delay | int ) ) * 1000 ) | int }}
-            default: []
-          # now we can set the set the volume
-          - service: media_player.volume_set
+          # so we pause (using the leader, since that will cover all)
+          - service: media_player.media_pause
             data:
-              volume_level: "{{ volume_level }}"
-              entity_id: "{{ entity_id }}"
+              entity_id: "{{ entity_group_leader }}"
+          # do a quick to make sure it isn't playing
+          - wait_template: "{{ states( entity_group_leader ) != 'playing' }}"
+            timeout:
+              seconds: 2
+          # we then put in a slight delay to ensure the pause
+          - delay: >-
+              {{ state_delay }}
+    default: []
+
   # we check to see if the player is in repeat state and turn off otherwise
   # the alarm announcement will repeat forever
   - choose:
@@ -254,7 +241,26 @@ sequence:
               seconds: 4
     default: []
 
-  # the actual call to say the message
+  # we set the volume if it is defined, but do so far all speakers in the group
+  - choose:
+      - conditions: >
+          {{ volume_level is defined and volume_level != None and volume_level is number }}
+        sequence:
+          # now we can set the set the volume
+          - service: media_player.volume_set
+            data:
+              volume_level: "{{ volume_level }}"
+              entity_id: >
+                {{ entity_group }}
+
+  # force to unmute, just in case, since mute IS different than volume
+  - service: media_player.volume_mute
+    data:
+      entity_id: >
+        {{ entity_group }}
+      is_volume_muted: false
+
+  # FINALLY the actual call to say the message
   - service: "{{ tts_engine }}"
     data:
       entity_id: "{{ entity_group_leader }}"
@@ -270,7 +276,7 @@ sequence:
       entity_id: "{{ entity_group_leader }}"
 
   # first we wait for it to start to properly announce the time
-  - wait_template: "{{ states( entity_id ) == 'playing' }}"
+  - wait_template: "{{ states( entity_group_leader ) == 'playing' }}"
     timeout:
       seconds: 2 # timeout so doesn't sit forever
 
@@ -278,46 +284,32 @@ sequence:
   # duration below is likely to succeed, which tends to be crucial for short
   # messages, otherwise it seems to take the full media length from what was
   # previously playing
-  - delay:
-      seconds: >
-        {{ state_delay | int }}
-      milliseconds: >
-        {{ ( ( state_delay - ( state_delay | int ) ) * 1000 ) | int }}
-
-  # we then put in a delay that should match the length of the media
   - delay: >-
+      {{ state_delay }}
+
+  # then we wait for it to finish announcing before we continue
+  - wait_template: "{{ states( entity_group_leader ) != 'playing' }}"
+    timeout: >-
       {# we grab the duration to try to set a wait that is roughly the right amount of time #}
       {# this is returned in seconds, so not extact accurate #}
-      {% set duration = state_attr(entity_id, 'media_duration') %} 
+      {% set duration = state_attr(entity_group_leader, 'media_duration') %} 
       {% if duration == None or duration <= 1 %} 
         {# this should never happen, though sounds like there can be delays in response #}
         {# to get the state, so we put a mininum of one second ... the waiting for the state #}
         {# below should cover BUT if it doesn't than state_delay can make sure we are good #}
         {{ "00:00:01" }}
       {% else %} 
-        {# subtracting one to compensate for potential run time and not running extra long #}
-        {# if there is cut-off then the state_delay can cover #}
-        {% set duration = duration - 1 %} 
+        {# adding a second, just to help with potential cut-off #}
+        {% set duration = duration + 1 %} 
         {% set seconds = duration % 60 %} 
         {% set minutes = (duration / 60)|int % 60 %} 
         {% set hours = (duration / 3600)|int %} 
-        {{ "{:02d}".format(hours) + ":" + "{:02d}".format(minutes) + ":" + "{:02d}".format(seconds)}}
+        {{ "{:02d}".format(hours) + ":" + "{:02d}".format(minutes) + ":" + "{:02d}".format(seconds) }}
       {% endif %}
 
-  # then we wait for it to finish announcing before we continue
-  - wait_template: "{{ states( entity_id ) != 'playing' }}"
-    timeout:
-      seconds: > # timeout so doesn't sit forever
-        {{ message_delay | int }}
-      milliseconds: >
-        {{ ( ( message_delay - ( message_delay | int ) ) * 1000 ) | int }}
-
   # we then put in a slight delay to ensure the playing finished
-  - delay:
-      seconds: >
-        {{ state_delay | int }}
-      milliseconds: >
-        {{ ( ( state_delay - ( state_delay | int ) ) * 1000 ) | int }}
+  - delay: >-
+      {{ state_delay }}
 
   # and now we restore where we were which should cover repeat, what's playing, etc.
   # NOTE: so far this works when driven by Sonos or HA, but when driven from Alexa
@@ -333,8 +325,9 @@ icon: mdi:account-voice
 ````
 
 # Revisions #
+* _2023-01-14_: `volume_level`, if given, is applied to all grouped speakers, simplified wait handling (should never wait unexpectantly long anymore and deprecated `max_wait`), and forcibly unmutes speakers based on feedback from @0_0
 * _2022-10-28_: Better volume value checking and added delay afer playing the message to help short message playback
-* _2022-10-15_: Added `min_wait` to help with HA reporting Sonos state changes too early, and change `max_wait` and delay handling based on feedback from @krazykaz83 (on HA community site)
+* _2022-10-15_: Added `min_wait` to help with HA reporting Sonos state changes too early, and changed `max_wait` and delay handling based on feedback from @krazykaz83
 * _2022-05-25_: Initial release
 
 # Available Blueprints #
